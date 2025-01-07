@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<title th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.openSearch}"></title>
+<div th:replace="fragment/linkFragment"></div>
+<!--  
+<style>
+    .search-list.type2{grid-template-columns: 1fr 1fr 1fr}
+    .search-list .li{
+        width: 100%;
+    }
+    .search-list .card-body .c-text {
+        align-items:center;
+    }
+    .search-list .card-btm{
+        justify-content: center;
+    }
+</style>
+-->
+</head>
+
+<body> 
+    <div id="container">
+    <h2 class="heading-l" style="margin-bottom: 2rem;" th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.openSearch}" onclick="location.href='/'"></h2>
+        <form id="listForm" name="searchFrm">
+        	<input type="hidden" th:id="pageIndex" th:name="pageIndex" th:value="1"/>
+            <input type="hidden" th:id="qaId" th:name="qaId" th:value="${comQaOpsInfoVO.qaId}"/>
+            <input type="hidden" th:id="searchCondition" th:name="searchCondition" th:value="${comQaOpsInfoVO.searchCondition}"/>
+            <input type="hidden" th:id="searchKeyword" th:name="searchKeyword" th:value="${comQaOpsInfoVO.searchKeyword}"/>
+        </form>
+        
+        <!-- 로딩 메시지 추가 -->
+        <div id="loading" style="display: none; text-align: center; margin: 2rem;">
+            <p>작업 수행 중입니다. 잠시만 기다려 주세요...</p>
+        </div>
+        
+        <!-- 검색 결과 없음 -->
+        <div class="no-result" style="display: none; text-align: center; margin: 2rem;">
+        	<p>검색 결과가 없습니다.</p>
+        </div>
+        
+        <!-- 오류 발생 -->
+        <div class="response-error" style="display: none; text-align: center; margin: 2rem;">
+        	<p>작업 수행 중 오류가 발생하였습니다.</p>
+        </div>
+        
+        <ul class="search-list type2"></ul>
+        <div class="pagination w-page"></div>
+    </div>
+
+    <script defer th:inline="javascript">
+    
+    function comQaOpsInfoDetail(qaId) {
+		$('#qaId').val(qaId);
+		$('#listForm').attr('method', 'post').attr('action',
+				contextPath + '/ext/ops/comQaOpsInfoDetailView').submit();
+	}
+
+    Listpaging();
+    
+    function Listpaging(){
+    	
+    	document.getElementById("loading").style.display = "block";
+        document.querySelector(".search-list.type2").innerHTML = "";
+
+        $.ajax({
+        	url: "/ext/ops/comQaOpsInfoText",
+            type: "post",
+            data: $("#listForm").serialize(),
+        }).done(function(result){
+          // 통합검색 목록  
+          var html = "";  
+          var resultList = result.comQaOpsInfoTextSearchList;
+          
+          if(resultList.length > 0){
+        	  for(let i=0; i<resultList.length; i++){
+                  html +=
+                      "<li class='li'><div class='in'><div class = 'card-body'>"
+                      +"<a class = 'c-text' href='javascript:void(0);' onclick='comQaOpsInfoDetail("+'"'+resultList[i].qaId+'"'+")'>"
+                      +"<p class= 'c-tit'>"+resultList[i].qestnSj+"</p>"
+                      +"<p class='c-txt'>"
+                      +"<strong class='key'>"+'[(#{comExtOps.comQaOpsInfoVO.wrterNm})]'+"</strong> "
+                      +"<span class='value'>"+resultList[i].wrterNm+"</span>"
+                      +"</p>"
+                      +"<p class='c-date'>"
+                      +"<strong class='key'>"+'[(#{comExtOps.comQaOpsInfoVO.writngDe})]'+"</strong> "
+                      +"<span class='value'>"+(resultList[i].frstRegistPnttm).substring(0,10)+"</span>"
+                      +"</p>"
+                      +"<p class='c-txt'>"
+                      +"<strong class='key'>"+'[(#{comExtOps.comQaOpsInfoVO.qestnCn})]'+"</strong> "
+                      +"<span class='value'>"+ resultList[i].qestnCn +"</span>"
+                      +"</p>"
+                      +"<p class='c-txt'>"
+                      +"<strong class='key'>"+'[(#{comExtOps.comQaOpsInfoVO.score})]'+"</strong> "
+                      +"<span class='value'>"+ resultList[i].score +"</span>"
+                      +"</p>"
+                      +"</a></div></div></li>";
+              }
+        	  
+              document.querySelector(".search-list.type2").innerHTML=html;
+              
+              document.querySelector(".no-result").style.display = "none";
+              document.querySelector(".response-error").style.display = "none";
+              
+              var pagination = result.pagination;
+              document.querySelector(".pagination.w-page").innerHTML=pagination;
+          } else {
+        	  document.querySelector(".search-list.type2").innerHTML = "";
+              document.querySelector(".no-result").style.display = "block";
+          }  
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            // 오류가 발생했을 때 처리
+            document.querySelector(".search-list.type2").innerHTML = "";
+            document.querySelector(".response-error").style.display = "block";
+            
+            console.error("Error details:", textStatus, errorThrown);
+        }).always(function() {
+            // 로딩 메시지 숨기기
+            document.getElementById("loading").style.display = "none";
+        });
+    }
+    
+    function linkPage(pageIndex) {
+        $('#pageIndex').val(pageIndex);
+        Listpaging();
+    }
+    
+    </script>
+
+</body>
+</html>

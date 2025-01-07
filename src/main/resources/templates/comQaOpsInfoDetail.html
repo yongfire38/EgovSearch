@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.detail}"></title>
+    <link id="contextPathHolder" th:data-contextPath="${#httpServletRequest.getContextPath()}"/>
+    <div th:replace="fragment/linkFragment"></div>
+</head>
+
+<body>
+
+<h2 class="heading-l" style="margin-bottom: 2rem;"><span th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.detail}"></span></h2>
+
+<form id="detailForm" name="detailForm" th:object="${comQaOpsInfoVO}">
+<input type="hidden" th:id="qaId" th:name="qaId" th:value="${comQaOpsInfoVO.qaId}"/>
+<input type="hidden" th:id="searchCondition" th:name="searchCondition" th:value="${comQaOpsInfoVO.searchCondition}"/>
+<input type="hidden" th:id="searchKeyword" th:name="searchKeyword" th:value="${comQaOpsInfoVO.searchKeyword}"/>
+
+<div class="tbl-wrap">
+    <dl class="tbl def-list">
+        <dt th:text="#{comExtOps.comQaOpsInfoVO.wrterNm}"></dt>
+        <dd id="wrterNm"></dd>
+        <dt th:text="#{comExtOps.comQaOpsInfoVO.qestnSj}"></dt>
+        <dd id="qestnSj"></dd>
+        <dt th:text="#{comExtOps.comQaOpsInfoVO.qestnCn}"></dt>
+        <dd id="qestnCn"></dd>
+        <dt th:text="#{comExtOps.comQaOpsInfoVO.answerCn}"></dt>
+        <dd id="answerCn"></dd>
+    </dl>
+</div>
+
+<div class="page-btn-wrap both">
+    <button type="button" class="btn md tertiary" th:text="#{button.list}" th:onclick="comQaOpsInfoList()"></button>
+    <div class="btn-wrap">
+        <button type="button" class="btn md secondary" th:text="#{button.delete}" th:onclick="comQaOpsInfoDelete()"></button>
+        <button type="button" class="btn md" th:text="#{button.update}" th:onclick="comQaOpsInfoUpdate()"></button>
+    </div>
+</div>
+
+</form>
+
+<script th:inline="javascript" defer>
+	comQaOpsInfoDetail();
+
+    function comQaOpsInfoList() {
+        $(location).attr('href', contextPath + '/');
+    }
+
+    function comQaOpsInfoDetail() {
+        $.ajax({
+            url: contextPath + '/ext/ops/comQaOpsInfoDetail',
+            method: 'post',
+            data: $('#detailForm').serialize(),
+        }).done(function(response) {
+            if (response.status === 'error') {
+                alert('[(#{fail.common.detail})]');
+                comQaOpsInfoList();
+            } else {
+                $('#wrterNm').text(response.result.wrterNm);
+                $('#qestnSj').text(response.result.qestnSj);
+                $('#qestnCn').text(response.result.qestnCn);
+                $('#answerCn').text(response.result.answerCn);
+            }
+        });
+    }
+
+    function comQaOpsInfoDelete() {
+        if (confirm('[(#{common.delete.msg})]')) {
+            $.ajax({
+                url: contextPath + '/ext/ops/comQaOpsInfoDelete',
+                method: 'post',
+                data: $('#detailForm').serialize(),
+            }).done(function(response) {
+                if (response.status === 'error') {
+                    alert('[(#{fail.common.delete})]');
+                    comQaOpsInfoList();
+                } else {
+                    alert('[(#{success.common.delete})]');
+                    comQaOpsInfoList();
+                }
+            });
+        }
+    }
+
+    function comQaOpsInfoUpdate() {
+        $('#detailForm').attr('method', 'post').attr('action', contextPath + '/ext/ops/comQaOpsInfoUpdateView').submit();
+    }
+</script>
+
+</body>
+
+</html>

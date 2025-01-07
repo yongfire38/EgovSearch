@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.create}"></title>
+    <link id="contextPathHolder" th:data-contextPath="${#httpServletRequest.getContextPath()}"/>
+    <div th:replace="fragment/linkFragment"></div>
+</head>
+
+<body>
+
+<h2 class="heading-l" style="margin-bottom: 2rem;"><span th:text="#{comExtOps.comQaOpsInfoVO.title}+' '+#{title.create}"></span></h2>
+
+<form id="insertForm" name="insertForm" th:object="${comQaOpsInfoVO}">
+
+<div class="txt-box bg-white">
+	<div class="box-cnt">
+		<div class="box-sec">
+			<h5 class="box-tit2"><span th:text="#{comExtOps.comQaOpsInfoVO.wrterNm}"></span></h5>
+            <div class="form-group full">
+                <div class="form-conts">
+                    <input type="text" id="wrterNm" name="wrterNm" class="form-control"
+                           th:field="*{wrterNm}"
+                           th:placeholder="#{comExtOps.comQaOpsInfoVO.wrterNm}+' '+#{input.input}">
+                    <span id="wrterNmError" style="color:red"></span>
+                </div>
+            </div>
+		</div>
+	</div>
+	<div class="box-cnt">
+		<div class="box-sec">
+			<h5 class="box-tit2"><span th:text="#{comExtOps.comQaOpsInfoVO.qestnSj}"></span></h5>
+            <div class="form-group full">
+                <div class="form-conts">
+                    <input type="text" id="qestnSj" name="qestnSj" class="form-control"
+                           th:field="*{qestnSj}"
+                           th:placeholder="#{comExtOps.comQaOpsInfoVO.qestnSj}+' '+#{input.input}">
+                    <span id="qestnSjError" style="color:red"></span>
+                </div>
+            </div>
+		</div>
+	</div>
+	<div class="box-cnt">
+		<div class="box-sec">
+			<h5 class="box-tit2"><span th:text="#{comExtOps.comQaOpsInfoVO.qestnCn}"></span></h5>
+            <div class="form-group full">
+                <div class="form-conts">
+                    <input type="text" id="qestnCn" name="qestnCn" class="form-control"
+                           th:field="*{qestnCn}"
+                           th:placeholder="#{comExtOps.comQaOpsInfoVO.qestnCn}+' '+#{input.input}">
+                    <span id="qestnCnError" style="color:red"></span>
+                </div>
+            </div>
+		</div>
+	</div>
+	<div class="box-cnt">
+		<h5 class="box-tit2"><span th:text="#{comExtOps.comQaOpsInfoVO.qnaProcessSttusCode}"></span></h5>
+		<div class="form-group full">
+			<div class="form-conts">
+				<select class="form-select md" name="qnaProcessSttusCode" th:title="#{comExtOps.comQaOpsInfoVO.qnaProcessSttusCode}">
+                	<option th:text="#{input.receipt}" value="1" th:selected="'1' == ${comQaOpsInfoVO.qnaProcessSttusCode}"></option>
+                </select>
+			</div>
+		</div>
+	</div>
+	
+	<div class="page-btn-wrap both">
+        <button type="button" class="btn md tertiary" th:text="#{button.list}" th:onclick="comQaOpsInfoList()"></button>
+        <button type="button" class="btn md" th:text="#{button.create}" th:onclick="comQaOpsInfoInsert()"></button>
+    </div>
+	
+</div>
+
+</form>
+
+<script th:inline="javascript" defer>
+    function comQaOpsInfoList() {
+        $(location).attr('href', contextPath + '/');
+    }
+
+    function comQaOpsInfoInsert() {
+        if (confirm('[(#{common.save.msg})]')) {
+            $('#wrterNmError').text('');
+            $('#qestnCnError').text('');
+            $('#qestnCnError').text('');
+            $.ajax({
+                url: contextPath + '/ext/ops/comQaOpsInfoInsert',
+                method: 'post',
+                data: $('#insertForm').serialize(),
+            }).done(function(response) {
+                if(response.status === 'valid') {
+                    $.each(response.errors, function(key, value) {
+                        $('#'+key+'Error').text(value);
+                    });
+                } else if (response.status === 'error') {
+                    alert('[(#{fail.common.insert})]');
+                    comQaOpsInfoList();
+                } else {
+                    alert('[(#{success.common.insert})]');
+                    comQaOpsInfoList();
+                }
+            });
+        }
+    }
+</script>
+
+</body>
+
+</html>
