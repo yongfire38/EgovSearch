@@ -175,16 +175,16 @@ public class Board implements Serializable {
 	}
 
 	/**
-	 * frstRegisterPnttm attribute를 리턴한다.
-	 * @return the frstRegisterPnttm
+	 * frstRegistPnttm attribute를 리턴한다.
+	 * @return the frstRegistPnttm
 	 */
 	public LocalDateTime getFrstRegistPnttm() {
 		return frstRegistPnttm;
 	}
 
 	/**
-	 * frstRegisterPnttm attribute 값을 설정한다.
-	 * @param frstRegistPnttm the frstRegisterPnttm to set
+	 * frstRegistPnttm attribute 값을 설정한다.
+	 * @param frstRegistPnttm the frstRegistPnttm to set
 	 */
 	public void setFrstRegistPnttm(LocalDateTime frstRegistPnttm) {
 		this.frstRegistPnttm = frstRegistPnttm;

@@ -102,4 +102,7 @@ public class BoardVO extends Board implements Serializable {
 
     /** 비밀글 여부 */
     private String secretAt;
+    
+    /** 유사도 점수 */
+    private double score;
 }
