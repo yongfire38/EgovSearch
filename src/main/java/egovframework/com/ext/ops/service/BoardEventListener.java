@@ -57,7 +57,7 @@ public class BoardEventListener {
             // OpenSearch 처리
             egovOpenSearchService.processOpenSearchOperations(event.getNttId(), boardVO);
             
-            // 성공 시 상태 업데이트
+            // 상태 업데이트
             ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
             Date localDate = Date.from(now.toInstant());
             

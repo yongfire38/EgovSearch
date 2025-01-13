@@ -58,6 +58,13 @@ public class EgovOpenSearchServiceImpl implements EgovOpenSearchService {
     
     private void performOpenSearchTextOperation(Long nttId, BoardVO boardVO) throws IOException {
         try {
+        	
+        	// HTML 태그 제거
+            BoardVO cleanedBoardVO = new BoardVO();
+            BeanUtils.copyProperties(boardVO, cleanedBoardVO);
+            cleanedBoardVO.setNttCn(StrUtil.cleanString(boardVO.getNttCn()));
+            cleanedBoardVO.setNttSj(StrUtil.cleanString(boardVO.getNttSj()));
+        	
             GetRequest getRequest = new GetRequest.Builder()
                     .index(textIndexName)
                     .id(String.valueOf(nttId))
@@ -70,7 +77,7 @@ public class EgovOpenSearchServiceImpl implements EgovOpenSearchService {
                 UpdateRequest<BoardVO, BoardVO> updateRequest = new UpdateRequest.Builder<BoardVO, BoardVO>()
                         .index(textIndexName)
                         .id(String.valueOf(nttId))
-                        .doc(boardVO)
+                        .doc(cleanedBoardVO)
                         .build();
                         
                 client.update(updateRequest, BoardVO.class);
@@ -80,7 +87,7 @@ public class EgovOpenSearchServiceImpl implements EgovOpenSearchService {
                 IndexRequest<BoardVO> indexRequest = new IndexRequest.Builder<BoardVO>()
                         .index(textIndexName)
                         .id(String.valueOf(nttId))
-                        .document(boardVO)
+                        .document(cleanedBoardVO)
                         .build();
                         
                 client.index(indexRequest);
@@ -94,7 +101,13 @@ public class EgovOpenSearchServiceImpl implements EgovOpenSearchService {
     
     private void performOpenSearchEmbeddingOperation(Long nttId, BoardVO boardVO) throws IOException {
         try {
-            BoardEmbeddingVO embeddingVO = addEmbedding(boardVO);
+        	// HTML 태그 제거
+            BoardVO cleanedBoardVO = new BoardVO();
+            BeanUtils.copyProperties(boardVO, cleanedBoardVO);
+            cleanedBoardVO.setNttCn(StrUtil.cleanString(boardVO.getNttCn()));
+            cleanedBoardVO.setNttSj(StrUtil.cleanString(boardVO.getNttSj()));
+
+            BoardEmbeddingVO embeddingVO = addEmbedding(cleanedBoardVO);
             
             GetRequest getRequest = new GetRequest.Builder()
                     .index(embeddingIndexName)
