@@ -6,6 +6,7 @@ import org.egovframe.rte.ptl.reactive.exception.EgovExceptionHandler;
 import org.egovframe.rte.ptl.reactive.validation.EgovValidation;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -96,6 +97,7 @@ public class EgovWebConfig implements WebMvcConfigurer {
     }
 
     @Bean
+    @Primary
     public LocalValidatorFactoryBean getValidator() {
         LocalValidatorFactoryBean factoryBean = new LocalValidatorFactoryBean();
         factoryBean.setValidationMessageSource(messageSource());

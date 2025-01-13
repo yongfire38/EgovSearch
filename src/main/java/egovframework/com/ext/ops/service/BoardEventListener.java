@@ -1,22 +1,23 @@
 package egovframework.com.ext.ops.service;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Date;
+import java.util.function.Consumer;
+
+import org.egovframe.rte.fdl.idgnr.EgovIdGnrService;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import egovframework.com.ext.ops.entity.Comtnbbsmanage;
 import egovframework.com.ext.ops.event.BoardEvent;
 import egovframework.com.ext.ops.repository.ComtnbbsRepository;
 import egovframework.com.ext.ops.repository.ComtnbbsmanageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.egovframe.rte.fdl.idgnr.EgovIdGnrService;
-import org.springframework.amqp.AmqpRejectAndDontRequeueException;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.BeanUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Date;
 
 @Slf4j
 @Service
@@ -27,14 +28,21 @@ public class BoardEventListener {
     private final EgovIdGnrService idgenServiceManager;
     private final EgovOpenSearchService egovOpenSearchService;
     
-    @RabbitListener(queues = "${spring.rabbitmq.queue-name}")
+    @Bean
+    public Consumer<BoardEvent> basicConsumer() {
+        return this::handleBoardEvent;
+    }
+    
     @Transactional
     public void handleBoardEvent(BoardEvent event) {
-        log.info("Received board event: {}", event);
+    	log.info("Received board event: {}", event);
+    	
+    	Comtnbbsmanage bbsManage = new Comtnbbsmanage();
+        String syncId;
         
-        Comtnbbsmanage bbsManage = new Comtnbbsmanage();
         try {
-            String syncId = idgenServiceManager.getNextStringId();
+        	
+            syncId = idgenServiceManager.getNextStringId();
             
             bbsManage.setSyncId(syncId);
             bbsManage.setNttId(event.getNttId());
@@ -74,14 +82,12 @@ public class BoardEventListener {
             ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
             Date localDate = Date.from(now.toInstant());
             
-            bbsManage.setSyncSttusCode("E");
-            bbsManage.setErrorPnttm(localDate);
-            try {
+            if (bbsManage.getSyncId() != null) {
+            	bbsManage.setSyncSttusCode("E");
+                bbsManage.setErrorPnttm(localDate);
                 comtnbbsmanageRepository.save(bbsManage);
-                log.info("Error status saved for event: {}", event);
-            } catch (Exception ex) {
-                log.error("Failed to save error status: {}", ex.getMessage());
             }
+            
             throw new AmqpRejectAndDontRequeueException("Failed to process board event", e);
         }
     }
