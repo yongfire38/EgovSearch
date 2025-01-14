@@ -123,20 +123,14 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 		        builder.from(pageNumber * pageSize);
 		        builder.size(pageSize);  // 한 페이지당 보여줄 개수만큼만 가져오도록 수정
 				
-				BoardEmbeddingVO boardEmbeddingVO = new BoardEmbeddingVO();
-		        BeanUtils.copyProperties(boardVO, boardEmbeddingVO); // 기존 필드 복사
-				
 				EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
 				
-				//화면에서는 보통 파라미터 1개만 검색 창에서 넘길 것이므로 임의로 '글 내용'으로 함
-				Embedding response = embeddingModel.embed(boardEmbeddingVO.getNttCn()).content();
+				Embedding response = embeddingModel.embed(boardVO.getSearchWrd()).content();
 				
 				builder.query(q -> q.bool(b -> b
 					.must(m -> m.knn(k -> k.field("bbsArticleEmbedding").vector(response.vector()).k(embeddingSearchCount)))
 					.must(m -> m.match(mt -> mt.field("useAt").query(FieldValue.of("Y"))))
 				));
-				
-				builder.query(q -> q.knn(k -> k.field("bbsArticleEmbedding").vector(response.vector()).k(embeddingSearchCount)));
 				
 				// qestnEmbedding 컬럼을 대상으로 벡터 검색 (유사한 순으로 egov.embeddingsearch.count 에 기재된 건수만큼 조회. 디폴트는 5건)
 				SearchResponse<BoardEmbeddingVO> searchResponse = client.search(builder.build(), BoardEmbeddingVO.class);
