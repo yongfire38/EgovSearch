@@ -26,100 +26,128 @@
             transform: translate(-50%, -50%);
             text-align: center;
         }
+
+        .search-top-box {
+            margin-bottom: var(--krds-spacer-5);
+        }
+
+        .btn-search-group {
+            display: flex;
+            gap: var(--krds-spacer-2);
+        }
+
+        .btn-search-group .btn {
+            flex: 1;
+        }
     </style>
 </head>
 
 <body>
-<nav class="breadcrumb-wrap" aria-label="브레드크럼" style="padding-top: 0; padding-bottom: var(--krds-spacer-5)">
-    <ol class="breadcrumb">
-        <li class="home"><a href="#" class="txt">홈</a></li>
-        <li><a href="#" class="txt">게시판</a></li>
-        <li><a href="#" class="txt">검색</a></li>
-    </ol>
-</nav>
+    <!-- header -->
+    <header class="header">
+        
+    </header>
+    <!-- //header -->
 
-<h2 class="heading-l" style="margin-bottom: 2rem;">게시판 검색</h2>
+    <!-- container -->
+    <div class="container">
+        <div class="inner">
+            <!-- content -->
+            <div class="content">
+                <nav class="breadcrumb-wrap" aria-label="브레드크럼">
+                    <ol class="breadcrumb">
+                        <li class="home"><a href="#" class="txt">홈</a></li>
+                        <li><a href="#" class="txt">게시판</a></li>
+                        <li><a href="#" class="txt">검색</a></li>
+                    </ol>
+                </nav>
 
-<form id="searchForm" name="searchForm">
-    <input type="hidden" id="pageIndex" name="pageIndex" value="1"/>
-    <div class="search-top-box">
-        <div class="sch-form-wrap">
-            <div class="input-group">
-                <select class="form-select md" id="searchCnd" name="searchCnd" title="검색조건">
-                    <option value="1">글 제목</option>
-                    <option value="2">글 내용</option>
-                    <option value="3">작성자</option>
-                </select>
-                <div class="sch-input">
-                    <input class="form-control md" id="searchWrd"
-                        name="searchWrd" placeholder="검색어를 입력하세요." autocomplete="off">
+                <h2 class="heading-2">게시판 검색</h2>
+
+                <form id="searchForm" name="searchForm">
+                    <input type="hidden" id="pageIndex" name="pageIndex" value="1"/>
+                    <div class="search-top-box">
+                        <div class="sch-form-wrap">
+                            <div class="input-group">
+                                <select class="form-select md" id="searchCnd" name="searchCnd" title="검색조건">
+                                    <option value="1">글 제목</option>
+                                    <option value="2">글 내용</option>
+                                    <option value="3">작성자</option>
+                                </select>
+                                <div class="sch-input">
+                                    <input class="form-control md" id="searchWrd"
+                                        name="searchWrd" placeholder="검색어를 입력하세요." autocomplete="off">
+                                </div>
+                                <div class="btn-search-group">
+                                    <button type="button" class="btn md primary" onclick="textSearch()">통합 검색</button>
+                                    <button type="button" class="btn md secondary" onclick="embeddingSearch()">벡터 검색</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="loading" class="loading">
+                    <div class="loading-content">
+                        <p>검색 중입니다. 잠시만 기다려 주세요...</p>
+                        <div class="spinner"></div>
+                    </div>
                 </div>
-                <button type="button" class="btn md" onclick="textSearch()">통합 검색</button>
-                <button type="button" class="btn md" onclick="embeddingSearch()">벡터 검색</button>
             </div>
+            <!-- //content -->
         </div>
     </div>
-</form>
+    <!-- //container -->
 
-<div id="loading" class="loading">
-    <div class="loading-content">
-        <p>검색 중입니다. 잠시만 기다려 주세요...</p>
-        <div class="spinner-border text-primary" role="status">
-            <span class="sr-only">Loading...</span>
+    <!-- footer -->
+    <footer class="footer">
+        <div class="inner">
+            <p class="copyright">Copyright © 2024 Ministry of the Interior and Safety. All Rights Reserved.</p>
         </div>
-    </div>
-</div>
+    </footer>
+    <!-- //footer -->
 
-<script th:inline="javascript">
+    <script th:inline="javascript">
 
-// 페이지 로드 시 로딩 화면 숨기기
-window.onload = function() {
-    document.getElementById("loading").style.display = "none";
-};
+        // 페이지 로드 시 로딩 화면 숨기기
+        window.onload = function() {
+            document.getElementById("loading").style.display = "none";
+        };
 
-// 뒤로가기 시 로딩 화면 숨기기
-window.onpageshow = function(event) {
-    if (event.persisted) {
-        document.getElementById("loading").style.display = "none";
-    }
-};
+        // 뒤로가기 시 로딩 화면 숨기기
+        window.onpageshow = function(event) {
+            if (event.persisted) {
+                document.getElementById("loading").style.display = "none";
+            }
+        };
 
-function textSearch() {
-	if (!notNullCheck($('#searchWrd').val())) {
-        alert('검색어를 입력하세요.');
-        return false;
-    }
-	document.getElementById("loading").style.display = "flex";
-    var form = document.getElementById("searchForm");
-    form.action = contextPath + "ext/ops/textSearchResultView";
-    form.method = "post";
-    form.submit();
-}
+        function textSearch() {
+            if (!notNullCheck($('#searchWrd').val())) {
+                alert('검색어를 입력하세요.');
+                return false;
+            }
+            document.getElementById("loading").style.display = "flex";
+            var form = document.getElementById("searchForm");
+            form.action = contextPath + "ext/ops/textSearchResultView";
+            form.method = "post";
+            form.submit();
+        }
 
-function embeddingSearch() {
-	if (!notNullCheck($('#searchWrd').val())) {
-        alert('검색어를 입력하세요.');
-        return false;
-    }
-    document.getElementById("loading").style.display = "flex";
-    var form = document.getElementById("searchForm");
-    
-    // 검색어를 nttCn 필드에 설정
-    var hiddenInput = document.createElement('input');
-    hiddenInput.type = 'hidden';
-    hiddenInput.name = 'nttCn';
-    hiddenInput.value = $('#searchWrd').val();
-    form.appendChild(hiddenInput);
-    
-    form.action = contextPath + "ext/ops/embeddingSearchResultView";
-    form.method = "post";
-    form.submit();
-}
+        function embeddingSearch() {
+            if (!notNullCheck($('#searchWrd').val())) {
+                alert('검색어를 입력하세요.');
+                return false;
+            }
+            document.getElementById("loading").style.display = "flex";
+            var form = document.getElementById("searchForm");
+            form.action = contextPath + "ext/ops/embeddingSearchResultView";
+            form.method = "post";
+            form.submit();
+        }
 
-function notNullCheck(value) {
-    return value != null && value.trim() !== '';
-}
-</script>
-
+        function notNullCheck(value) {
+            return value != null && value.trim() !== '';
+        }
+    </script>
 </body>
 </html>

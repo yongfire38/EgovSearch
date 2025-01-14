@@ -148,11 +148,17 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 					return result;
 				}).collect(Collectors.toList());
 				
-				long totalHits = searchResponse.hits().total().value();
+				// KNN 검색 결과 수를 기준으로 totalHits 설정
+				long totalHits = Math.min(searchResponse.hits().total().value(), embeddingSearchCount);
 		        Sort sort = Sort.by("nttId").descending();
 		        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
 		        
-		        return new PageImpl<>(searchResults, pageable, totalHits);
+		        // 페이지 크기를 KNN 검색 결과 수로 제한
+		        int start = (int) Math.min(pageable.getOffset(), totalHits);
+		        int end = (int) Math.min((start + pageable.getPageSize()), totalHits);
+		        List<BoardEmbeddingVO> pageContent = searchResults.subList(start, end);
+		        
+		        return new PageImpl<>(pageContent, pageable, totalHits);
 			
 			} catch (Exception e) {
 				log.error("Error occurred during embedding search process:", e);
