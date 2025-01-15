@@ -1,6 +1,7 @@
 package egovframework.com.ext.ops.service.impl;
 
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,12 +65,9 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 			// Open Search 인덱스에서 검색 요청
 	        SearchRequest.Builder builder = new SearchRequest.Builder().index(textIndexName).trackScores(true);;
 	        
-	        // 페이지 번호와 사이즈 설정
-	        int pageNumber = boardVO.getPageIndex() - 1;
-	        int pageSize = textSearchPageSize;
-	        
-	        builder.from(pageNumber * pageSize);
-	        builder.size(pageSize);  // 한 페이지당 보여줄 개수만큼만 가져오도록 수정
+	        // OpenSearch에서 가져올 전체 결과 수를 textSearchCount로 설정
+	        builder.from(0);  // 전체 결과를 가져오기 위해 0부터 시작
+	        builder.size(textSearchCount);
 	        
 	        // 정렬 설정을 OpenSearch 쿼리에 추가
 	        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
@@ -101,11 +99,22 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 				return result;
 			}).collect(Collectors.toList());
 				
-			long totalHits = searchResponse.hits().total().value();
-	        Sort sort = Sort.by("nttId").descending();
-	        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-
-	        return new PageImpl<>(searchResults, pageable, totalHits);
+			// 전체 결과 수 계산
+	        long totalHits = Math.min(searchResponse.hits().total().value(), textSearchCount);
+	        
+	        // 페이징 처리
+	        int pageNumber = boardVO.getPageIndex() - 1;
+	        int pageSize = textSearchPageSize;
+	        int start = pageNumber * pageSize;
+	        int end = Math.min(start + pageSize, searchResults.size());
+	        
+	        // 시작 인덱스가 전체 결과 수보다 크면 빈 리스트 반환
+	        List<BoardVO> pageContent = start >= searchResults.size() ? 
+	            new ArrayList<>() : searchResults.subList(start, end);
+	            
+	        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("nttId").descending());
+	        
+	        return new PageImpl<>(pageContent, pageable, totalHits);
 		} catch (Exception e) {
 			log.error("Error occurred during text search process:", e);
 			throw processException("fail.common.msg", e);
@@ -118,13 +127,10 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 				
 				// Open Search 인덱스에서 검색 요청
 		        SearchRequest.Builder builder = new SearchRequest.Builder().index(embeddingIndexName).trackScores(true);;
-		        
-		        // 페이지 번호와 사이즈 설정
-		        int pageNumber = boardVO.getPageIndex() - 1;
-		        int pageSize = embeddingSearchPageSize;
-		        
-		        builder.from(pageNumber * pageSize);
-		        builder.size(pageSize);  // 한 페이지당 보여줄 개수만큼만 가져오도록 수정
+ 
+		        // OpenSearch에서 가져올 전체 결과 수를 embeddingSearchCount로 설정
+		        builder.from(0);  // 전체 결과를 가져오기 위해 0부터 시작
+		        builder.size(embeddingSearchCount);
 		        
 		        // 정렬 설정을 OpenSearch 쿼리에 추가
 		        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
@@ -148,15 +154,22 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 					return result;
 				}).collect(Collectors.toList());
 				
-				// KNN 검색 결과 수를 기준으로 totalHits 설정
-				long totalHits = Math.min(searchResponse.hits().total().value(), embeddingSearchCount);
-		        Sort sort = Sort.by("nttId").descending();
-		        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
+				// 전체 결과 수 계산
+		        long totalHits = Math.min(searchResponse.hits().total().value(), embeddingSearchCount);
 		        
-		        // 페이지 크기를 KNN 검색 결과 수로 제한
-		        int start = (int) Math.min(pageable.getOffset(), totalHits);
-		        int end = (int) Math.min((start + pageable.getPageSize()), totalHits);
-		        List<BoardEmbeddingVO> pageContent = searchResults.subList(start, end);
+		        // 페이지 번호와 사이즈 설정
+		        int pageNumber = boardVO.getPageIndex() - 1;
+		        int pageSize = embeddingSearchPageSize;
+		        
+		        // 페이징 처리
+		        int start = pageNumber * pageSize;
+		        int end = Math.min(start + pageSize, searchResults.size());  // end가 리스트 크기를 넘지 않도록 보장
+		        
+		        // 시작 인덱스가 전체 결과 수보다 크면 빈 리스트 반환
+		        List<BoardEmbeddingVO> pageContent = start >= searchResults.size() ? 
+		            new ArrayList<>() : searchResults.subList(start, end);
+		            
+		        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("nttId").descending());
 		        
 		        return new PageImpl<>(pageContent, pageable, totalHits);
 			
