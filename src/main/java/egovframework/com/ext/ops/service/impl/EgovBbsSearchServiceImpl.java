@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.SortOrder;
 import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,7 +62,7 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 		
 		try {
 			// Open Search 인덱스에서 검색 요청
-	        SearchRequest.Builder builder = new SearchRequest.Builder().index(textIndexName);
+	        SearchRequest.Builder builder = new SearchRequest.Builder().index(textIndexName).trackScores(true);;
 	        
 	        // 페이지 번호와 사이즈 설정
 	        int pageNumber = boardVO.getPageIndex() - 1;
@@ -69,6 +70,9 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 	        
 	        builder.from(pageNumber * pageSize);
 	        builder.size(pageSize);  // 한 페이지당 보여줄 개수만큼만 가져오도록 수정
+	        
+	        // 정렬 설정을 OpenSearch 쿼리에 추가
+	        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
 			
 			// 검색 조건
 			if(!ObjectUtils.isEmpty(boardVO.getSearchWrd()) && "1".equals(boardVO.getSearchCnd())) {
@@ -113,7 +117,7 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 			try {
 				
 				// Open Search 인덱스에서 검색 요청
-		        SearchRequest.Builder builder = new SearchRequest.Builder().index(embeddingIndexName);
+		        SearchRequest.Builder builder = new SearchRequest.Builder().index(embeddingIndexName).trackScores(true);;
 		        
 		        // 페이지 번호와 사이즈 설정
 		        int pageNumber = boardVO.getPageIndex() - 1;
@@ -121,6 +125,9 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 		        
 		        builder.from(pageNumber * pageSize);
 		        builder.size(pageSize);  // 한 페이지당 보여줄 개수만큼만 가져오도록 수정
+		        
+		        // 정렬 설정을 OpenSearch 쿼리에 추가
+		        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
 				
 				EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
 				
