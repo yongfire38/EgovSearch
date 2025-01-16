@@ -15,8 +15,8 @@ import lombok.Setter;
 @Entity
 @Getter
 @Setter
-@Table(name="COMTNBBSMANAGE")
-public class Comtnbbsmanage {
+@Table(name="COMTNBBSSYNCLOG")
+public class Comtnbbssynclog {
 
 	@Id
 	@Column(name="SYNC_ID", length=20)

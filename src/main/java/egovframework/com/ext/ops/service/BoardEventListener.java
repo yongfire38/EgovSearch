@@ -12,10 +12,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import egovframework.com.ext.ops.entity.Comtnbbsmanage;
+import egovframework.com.ext.ops.entity.Comtnbbssynclog;
 import egovframework.com.ext.ops.event.BoardEvent;
 import egovframework.com.ext.ops.repository.ComtnbbsRepository;
-import egovframework.com.ext.ops.repository.ComtnbbsmanageRepository;
+import egovframework.com.ext.ops.repository.ComtnbbssynclogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class BoardEventListener {
-	private final ComtnbbsmanageRepository comtnbbsmanageRepository;
+	private final ComtnbbssynclogRepository comtnbbssynclogRepository;
     private final ComtnbbsRepository comtnbbsRepository;
     private final EgovIdGnrService idgenServiceManager;
     private final EgovOpenSearchService egovOpenSearchService;
@@ -37,7 +37,7 @@ public class BoardEventListener {
     public void handleBoardEvent(BoardEvent event) {
     	log.info("Received board event: {}", event);
     	
-    	Comtnbbsmanage bbsManage = new Comtnbbsmanage();
+    	Comtnbbssynclog bbsManage = new Comtnbbssynclog();
         String syncId;
         
         try {
@@ -50,8 +50,8 @@ public class BoardEventListener {
             bbsManage.setSyncSttusCode("N"); // 신규
             bbsManage.setRegistPnttm(event.getEventDateTime());
             
-            // COMTNBBSMANAGE에 저장
-            comtnbbsmanageRepository.save(bbsManage);
+            // COMTNBBSSYNCLOG에 저장
+            comtnbbssynclogRepository.save(bbsManage);
             
             // BoardVO 조회
             BoardVO boardVO = comtnbbsRepository.findBBSDTOByNttId(event.getNttId())
@@ -71,7 +71,7 @@ public class BoardEventListener {
             
             bbsManage.setSyncSttusCode("Y");
             bbsManage.setSyncPnttm(localDate);
-            comtnbbsmanageRepository.save(bbsManage);
+            comtnbbssynclogRepository.save(bbsManage);
             
             log.info("Successfully processed board event: {}", event);
             
@@ -85,7 +85,7 @@ public class BoardEventListener {
             if (bbsManage.getSyncId() != null) {
             	bbsManage.setSyncSttusCode("E");
                 bbsManage.setErrorPnttm(localDate);
-                comtnbbsmanageRepository.save(bbsManage);
+                comtnbbssynclogRepository.save(bbsManage);
             }
             
             throw new AmqpRejectAndDontRequeueException("Failed to process board event", e);
