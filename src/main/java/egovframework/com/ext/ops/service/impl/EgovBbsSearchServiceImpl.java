@@ -69,8 +69,8 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 	        builder.from(0);  // 전체 결과를 가져오기 위해 0부터 시작
 	        builder.size(textSearchCount);
 	        
-	        // 정렬 설정을 OpenSearch 쿼리에 추가
-	        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
+	        // score 기준 내림차순 정렬 설정
+	        builder.sort(s -> s.score(f -> f.order(SortOrder.Desc)));
 			
 			// 검색 조건
 			if(!ObjectUtils.isEmpty(boardVO.getSearchWrd()) && "1".equals(boardVO.getSearchCnd())) {
@@ -132,8 +132,8 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 		        builder.from(0);  // 전체 결과를 가져오기 위해 0부터 시작
 		        builder.size(embeddingSearchCount);
 		        
-		        // 정렬 설정을 OpenSearch 쿼리에 추가
-		        builder.sort(s -> s.field(f -> f.field("nttId").order(SortOrder.Desc)));
+		        // score 기준 내림차순 정렬 설정
+		        builder.sort(s -> s.score(f -> f.order(SortOrder.Desc)));
 				
 				EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
 				
