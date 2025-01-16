@@ -1,0 +1,149 @@
+/* search.css */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;  /* 화면 전체 높이 사용 */
+    padding: 2rem;
+}
+
+.content {
+    width: 100%;
+}
+
+.heading-2 {
+    font-size: 2.5rem;  /* 제목 크기 증가 */
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.search-box {
+    padding: 4rem;
+    background-color: #f7f9fc;
+    border-radius: 12px;
+    margin: 2rem auto;
+    width: 100%;
+    max-width: 1400px;  /* 최대 너비 증가 */
+}
+
+.search-area {
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.search-area .txt {
+    margin: 1.5rem 0 2.5rem;
+    color: #666;
+    font-size: 1.4rem;  /* 설명 텍스트 크기 증가 */
+}
+
+.search-input-box {
+    display: flex;
+    gap: 1.5rem;
+    background: #fff;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-select {
+    width: 200px;  /* select 박스 너비 증가 */
+}
+
+.search-select .form-select {
+    height: 64px;      /* select 박스 높이 증가 */
+    font-size: 1.3rem; /* 글자 크기 증가 */
+    padding: 0 1.5rem;
+}
+
+.search-input {
+    flex: 1;
+    display: flex;
+    gap: 1.5rem;
+}
+
+.form-select.lg {
+    width: 100%;
+    height: 64px;
+    font-size: 1.3rem;
+    padding: 0 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    /* 기본 화살표 사용을 위해 appearance 속성 제거 */
+    background-color: #fff;
+    padding-right: 2rem;  /* 화살표를 위한 적절한 여백만 유지 */
+}
+
+.form-control.lg {
+    flex: 1;
+    height: 64px;
+    font-size: 1.3rem;
+    padding: 0 2rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.btn-group {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn.lg {
+    min-width: 160px;
+    height: 64px;
+    font-size: 1.3rem;
+    padding: 0 2rem;
+    font-weight: 500;
+    border-radius: 8px;
+}
+
+/* 브레드크럼 스타일 수정 */
+.breadcrumb-wrap {
+    margin-bottom: 2rem;
+}
+
+.breadcrumb {
+    font-size: 1.2rem;  /* 브레드크럼 글자 크기 증가 */
+}
+
+/* 로딩 관련 스타일도 크기 증가 */
+.loading-content p {
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+}
+
+.spinner {
+    margin: 1.5rem auto;
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 반응형 디자인을 위한 미디어 쿼리 */
+@media (max-width: 1024px) {
+    .search-input-box {
+        flex-direction: column;
+    }
+    
+    .search-select {
+        width: 100%;
+    }
+    
+    .search-input {
+        flex-direction: column;
+    }
+    
+    .btn-group {
+        flex-direction: row;
+        justify-content: center;
+    }
+}

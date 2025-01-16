@@ -1,54 +1,15 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>게시판 검색</title>
-    <link id="contextPathHolder" th:data-contextPath="${#httpServletRequest.getContextPath()}"/>
-    <div th:replace="fragment/linkFragment"></div>
-    
-    <style>
-        .loading {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 1000;
-        }
-        
-        .loading-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .search-top-box {
-            margin-bottom: var(--krds-spacer-5);
-        }
-
-        .btn-search-group {
-            display: flex;
-            gap: var(--krds-spacer-2);
-        }
-
-        .btn-search-group .btn {
-            flex: 1;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>게시판 검색</title>
+<link id="contextPathHolder" th:data-contextPath="${#httpServletRequest.getContextPath()}"/>
+<div th:replace="fragment/linkFragment"></div>
+<link rel="stylesheet" th:href="@{/css/search_css.css}">
+<div th:replace="fragment/linkFragment"></div>
 </head>
-
 <body>
-    <!-- header -->
-    <header class="header">
-        
-    </header>
-    <!-- //header -->
-
     <!-- container -->
     <div class="container">
         <div class="inner">
@@ -62,32 +23,40 @@
                     </ol>
                 </nav>
 
-                <h2 class="heading-2">게시판 검색</h2>
-
-                <form id="searchForm" name="searchForm">
-                    <input type="hidden" id="pageIndex" name="pageIndex" value="1"/>
-                    <div class="search-top-box">
-                        <div class="sch-form-wrap">
-                            <div class="input-group">
-                                <select class="form-select md" id="searchCnd" name="searchCnd" title="검색조건">
-                                    <option value="1">글 제목</option>
-                                    <option value="2">글 내용</option>
-                                    <option value="3">작성자</option>
-                                </select>
-                                <div class="sch-input">
-                                    <input class="form-control md" id="searchWrd"
-                                        name="searchWrd" placeholder="검색어를 입력하세요." autocomplete="off">
-                                </div>
-                                <div class="btn-search-group">
-                                    <button type="button" class="btn md primary" onclick="textSearch()">통합 검색</button>
-                                    <button type="button" class="btn md secondary" onclick="embeddingSearch()">벡터 검색</button>
+                <div class="search-box">
+                    <div class="search-area">
+                        <h2 class="heading-2">게시판 검색</h2>
+                        <p class="txt">검색어를 입력하여 원하는 정보를 찾아보세요.</p>
+                        
+                        <form id="searchForm" name="searchForm" class="search-form">
+                            <input type="hidden" id="pageIndex" name="pageIndex" value="1"/>
+                            <div class="search-input-box">
+								<div class="search-select">
+									<select class="form-select lg" id="searchCnd" name="searchCnd" title="검색조건">
+										<option value="1">글 제목</option>
+										<option value="2">글 내용</option>
+										<option value="3">작성자</option>
+									</select>
+								</div>
+								<div class="search-input">
+                                    <input type="text" class="form-control lg" id="searchWrd" 
+                                           name="searchWrd" placeholder="검색어를 입력하세요" 
+                                           title="검색어 입력">
+                                    <div class="btn-group">
+                                        <button type="button" class="btn primary lg" onclick="textSearch()">
+                                            <span>통합 검색</span>
+                                        </button>
+                                        <button type="button" class="btn secondary lg" onclick="embeddingSearch()">
+                                            <span>벡터 검색</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </form>
                     </div>
-                </form>
+                </div>
 
-                <div id="loading" class="loading">
+                <div id="loading" class="loading" style="display: none;">
                     <div class="loading-content">
                         <p>검색 중입니다. 잠시만 기다려 주세요...</p>
                         <div class="spinner"></div>
@@ -99,18 +68,7 @@
     </div>
     <!-- //container -->
 
-    <!-- footer -->
-    <footer class="footer">
-    	<!--
-        <div class="inner">
-            <p class="copyright">Copyright © 2024 Ministry of the Interior and Safety. All Rights Reserved.</p>
-        </div>
-        -->
-    </footer>
-    <!-- //footer -->
-
     <script th:inline="javascript">
-
         // 페이지 로드 시 로딩 화면 숨기기
         window.onload = function() {
             document.getElementById("loading").style.display = "none";
