@@ -7,7 +7,6 @@
 <link id="contextPathHolder" th:data-contextPath="${#httpServletRequest.getContextPath()}"/>
 <div th:replace="fragment/linkFragment"></div>
 <link rel="stylesheet" th:href="@{/css/search_css.css}">
-<div th:replace="fragment/linkFragment"></div>
 </head>
 <body>
     <!-- container -->
@@ -31,6 +30,16 @@
                         <form id="searchForm" name="searchForm" class="search-form">
                             <input type="hidden" id="pageIndex" name="pageIndex" value="1"/>
                             <div class="search-input-box">
+                                <div class="krds-check-area">
+                                    <div class="krds-form-chip">
+                                        <input type="radio" class="radio" name="rdo_chip" id="rdo_chip_1" checked>
+                                        <label class="krds-form-chip-outline" for="rdo_chip_1">통합 검색 </label>
+                                    </div>
+                                    <div class="krds-form-chip">
+                                        <input type="radio" class="radio" name="rdo_chip" id="rdo_chip_2">
+                                        <label class="krds-form-chip-outline" for="rdo_chip_2">벡터 검색 </label>
+                                    </div>
+                                </div>
 								<div class="search-select">
 									<select class="form-select lg" id="searchCnd" name="searchCnd" title="검색조건">
 										<option value="1">글 제목</option>
@@ -43,11 +52,8 @@
                                            name="searchWrd" placeholder="검색어를 입력하세요" 
                                            title="검색어 입력">
                                     <div class="btn-group">
-                                        <button type="button" class="btn primary lg" onclick="textSearch()">
-                                            <span>통합 검색</span>
-                                        </button>
-                                        <button type="button" class="btn secondary lg" onclick="embeddingSearch()">
-                                            <span>벡터 검색</span>
+                                        <button type="button" class="btn primary lg" onclick="performSearch()">
+                                            <span>검색</span>
                                         </button>
                                     </div>
                                 </div>
@@ -72,6 +78,11 @@
         // 페이지 로드 시 로딩 화면 숨기기
         window.onload = function() {
             document.getElementById("loading").style.display = "none";
+            // 라디오 버튼 이벤트 리스너 등록
+            document.getElementById('rdo_chip_1').addEventListener('change', handleSearchTypeChange);
+            document.getElementById('rdo_chip_2').addEventListener('change', handleSearchTypeChange);
+            // 초기 검색 타입에 따른 UI 상태 설정
+            handleSearchTypeChange();
         };
 
         // 뒤로가기 시 로딩 화면 숨기기
@@ -81,26 +92,31 @@
             }
         };
 
-        function textSearch() {
-            if (!notNullCheck($('#searchWrd').val())) {
-                alert('검색어를 입력하세요.');
-                return false;
+        // 라디오 버튼 변경 시 처리
+        function handleSearchTypeChange() {
+            var searchSelect = document.getElementById('searchCnd');
+            if (document.getElementById('rdo_chip_2').checked) {
+                searchSelect.disabled = true;
+            } else {
+                searchSelect.disabled = false;
             }
-            document.getElementById("loading").style.display = "flex";
-            var form = document.getElementById("searchForm");
-            form.action = contextPath + "ext/ops/textSearchResultView";
-            form.method = "post";
-            form.submit();
         }
 
-        function embeddingSearch() {
+        // 검색 수행
+        function performSearch() {
             if (!notNullCheck($('#searchWrd').val())) {
                 alert('검색어를 입력하세요.');
                 return false;
             }
             document.getElementById("loading").style.display = "flex";
             var form = document.getElementById("searchForm");
-            form.action = contextPath + "ext/ops/embeddingSearchResultView";
+            
+            if (document.getElementById('rdo_chip_1').checked) {
+                form.action = contextPath + "ext/ops/textSearchResultView";
+            } else {
+                form.action = contextPath + "ext/ops/embeddingSearchResultView";
+            }
+            
             form.method = "post";
             form.submit();
         }

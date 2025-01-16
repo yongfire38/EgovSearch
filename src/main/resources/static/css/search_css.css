@@ -12,7 +12,7 @@
 }
 
 .heading-2 {
-    font-size: 2.5rem;  /* 제목 크기 증가 */
+    font-size: 3rem;  /* 제목 크기 증가 */
     margin-bottom: 1.5rem;
     font-weight: 600;
 }
@@ -35,16 +35,27 @@
 .search-area .txt {
     margin: 1.5rem 0 2.5rem;
     color: #666;
-    font-size: 1.4rem;  /* 설명 텍스트 크기 증가 */
+    font-size: 1.6rem;  /* 설명 텍스트 크기 증가 */
 }
 
 .search-input-box {
+    position: relative;
     display: flex;
     gap: 1.5rem;
     background: #fff;
     padding: 2.5rem;
+    padding-top: 6rem;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-input-area {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.search-input-box .krds-check-area {
+    margin-bottom: 0;
 }
 
 .search-select {
@@ -52,8 +63,8 @@
 }
 
 .search-select .form-select {
-    height: 64px;      /* select 박스 높이 증가 */
-    font-size: 1.3rem; /* 글자 크기 증가 */
+    height: 64px;
+    font-size: 1.5rem;
     padding: 0 1.5rem;
 }
 
@@ -66,7 +77,7 @@
 .form-select.lg {
     width: 100%;
     height: 64px;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     padding: 0 1.5rem;
     border-radius: 8px;
     border: 1px solid #ddd;
@@ -78,7 +89,7 @@
 .form-control.lg {
     flex: 1;
     height: 64px;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     padding: 0 2rem;
     border-radius: 8px;
     border: 1px solid #ddd;
@@ -92,7 +103,7 @@
 .btn.lg {
     min-width: 160px;
     height: 64px;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     padding: 0 2rem;
     font-weight: 500;
     border-radius: 8px;
@@ -123,6 +134,66 @@
     animation: spin 1s linear infinite;
 }
 
+/* 라디오 버튼 / 체크박스 chip */
+.krds-check-area {
+    position: absolute;
+    top: 0.5rem;
+    left: 2.5rem;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    width: 200px;  /* search-select와 동일한 폭 */
+    justify-content: space-between;  /* 라디오 버튼 간격 균등 분배 */
+}
+
+.krds-form-chip {
+    position: relative;
+    display: inline-flex;
+    flex: 1;  /* 공간 균등 분배 */
+}
+
+.krds-form-chip:last-child {
+    margin-right: 0;
+}
+
+.krds-form-chip input[type=radio] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.krds-form-chip input[type=radio] ~ label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;  /* 텍스트 중앙 정렬 */
+    white-space: nowrap;
+    height: var(--krds-size-height-7, 48px);  /* 높이 증가 */
+    padding: 0 1rem;
+    background-color: var(--krds-form-chip--color-action, #fff);
+    border: 1px solid var(--krds-form-chip--color-border, #ddd);
+    border-radius: var(--krds-radius-medium2, 8px);
+    font-size: 1.5rem;  /* 텍스트 크기 증가 */
+    color: var(--krds-form-chip--color-text, #333);
+    cursor: pointer;
+    transition: .4s cubic-bezier(.4, .0, .23, 1);
+    width: 100%;  /* 너비 100%로 설정 */
+}
+
+.krds-form-chip input[type=radio]:checked ~ label {
+    background-color: var(--krds-form-chip--color-action-checked, #e8f3ff);
+    border-color: var(--krds-form-chip--color-border-checked, #0066ff);
+    color: var(--krds-form-chip--color-text-checked, #0066ff);
+}
+
+.krds-form-chip input[type=radio]:disabled ~ label {
+    background-color: var(--krds-form-chip--color-action-disabled, #f5f5f5);
+    border-color: var(--krds-form-chip--color-border-disabled, #eee);
+    color: var(--krds-form-chip--color-text-disabled, #999);
+    cursor: default;
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -132,6 +203,7 @@
 @media (max-width: 1024px) {
     .search-input-box {
         flex-direction: column;
+        padding-top: 5.5rem;
     }
     
     .search-select {
@@ -145,5 +217,9 @@
     .btn-group {
         flex-direction: row;
         justify-content: center;
+    }
+
+    .krds-check-area {
+        width: calc(100% - 5rem);  /* 패딩을 고려한 전체 너비 */
     }
 }
