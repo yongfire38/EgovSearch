@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.annotation.PostConstruct;
+
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
@@ -25,11 +27,14 @@ import org.opensearch.client.opensearch._types.analysis.TokenFilter;
 import org.opensearch.client.opensearch._types.analysis.Tokenizer;
 import org.opensearch.client.opensearch.core.BulkRequest;
 import org.opensearch.client.opensearch.core.BulkResponse;
-import org.opensearch.client.opensearch.core.bulk.IndexOperation;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import dev.langchain4j.data.embedding.Embedding;
@@ -61,8 +66,15 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 	@Value("${opensearch.embedding.indexname}")
     public String embeddingIndexName;
 	
-	@Value("${opensearch.index.size}")
-    public int indexSize;
+	@Value("${index.batch.size}")
+    public int batchSize;
+	
+	private EmbeddingModel embeddingModel;
+
+    @PostConstruct
+    public void init() {
+        embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+    }
 	
 	private final OpenSearchClient client;
 	
@@ -530,6 +542,9 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 	@Override
 	public void insertTotalData() {
 		
+		processIndexing(false, textIndexName);
+		/*
+		 * 
 		long beforeTime = System.currentTimeMillis();
 		
 		// step 1. mySql 테이블의 모든 데이터를 조회한다
@@ -608,11 +623,16 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 	    long secDiffTime = (afterTime - beforeTime) / 1000;
 
 	    log.debug("총 소요 시간: " + secDiffTime + "초");
+	    
+	    */
 	}
 
 	@Override
 	public void insertTotalEmbeddingData() {
-	EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+		processIndexing(true, embeddingIndexName);
+		/*
+		
+		EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
 		
 		int pageSize = indexSize; // 인덱싱 시, 분할 처리할 수
 	    long totalCount = comtnbbsRepository.count(); // 전체 데이터 수 조회
@@ -684,8 +704,10 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 			    e.printStackTrace();
 			}	
 		}
+		
+		*/
 	}
-
+	
 	@Override
 	public void deleteIndex(String indexName) throws IOException {
 		DeleteIndexRequest deleteRequest = new DeleteIndexRequest.Builder().index(indexName).build();
@@ -693,4 +715,116 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
         log.debug(String.format("Index %s.", deleteRequest.index().toString().toLowerCase()));
 		
 	}
+	
+	private void processIndexing(boolean withEmbedding, String indexName) {
+        long startTime = System.currentTimeMillis();
+        
+        // 전체 데이터 수와 페이지 수 계산
+        long totalCount = comtnbbsRepository.countAllArticles();
+        int totalPages = (int) Math.ceil((double) totalCount / batchSize);
+        
+        log.info("Starting indexing process. Total records: {}, Batch size: {}, Total pages: {}", 
+                totalCount, batchSize, totalPages);
+
+        for (int page = 0; page < totalPages; page++) {
+            long pageStartTime = System.currentTimeMillis();
+            
+            try {
+                // 페이지별로 데이터 조회
+                Pageable pageable = PageRequest.of(page, batchSize, Sort.by("comtnbbsId.nttId").descending());
+                Page<BBSDTO> pageResult = comtnbbsRepository.findAllArticlesWithPaging(pageable);
+                
+                if (!pageResult.isEmpty()) {
+                    processBatchRequest(pageResult.getContent(), withEmbedding, indexName, page, totalPages);
+                }
+                
+                logPageProgress(page, totalPages, pageStartTime);
+            } catch (Exception e) {
+                log.error("Error processing page {}: {}", page, e.getMessage(), e);
+            }
+        }
+
+        logTotalExecutionTime(startTime);
+    }
+	
+	private void processBatchRequest(List<BBSDTO> batchData, boolean withEmbedding, String indexName, int currentPage,
+			int totalPages) {
+		BulkRequest.Builder bulkRequestBuilder = new BulkRequest.Builder();
+
+		batchData.forEach(bbsArticleInfo -> {
+			try {
+				Map<String, Object> dataMap = convertToMap(bbsArticleInfo, withEmbedding);
+				bulkRequestBuilder.operations(ops -> ops
+						.index(idx -> idx.index(indexName).id(String.valueOf(dataMap.get("nttId"))).document(dataMap)));
+			} catch (Exception e) {
+				log.error("Error processing document {}: {}", bbsArticleInfo.getNttId(), e.getMessage());
+			}
+		});
+
+		executeBulkRequest(bulkRequestBuilder, currentPage, totalPages);
+	}
+	
+	private Map<String, Object> convertToMap(BBSDTO bbsArticleInfo, boolean withEmbedding) {
+        Map<String, Object> dataMap = new HashMap<>();
+        
+        // 기본 필드 매핑
+        dataMap.put("nttId", bbsArticleInfo.getNttId());
+        dataMap.put("bbsId", bbsArticleInfo.getBbsId());
+        dataMap.put("bbsNm", bbsArticleInfo.getBbsNm());
+        dataMap.put("nttNo", bbsArticleInfo.getNttNo());
+        dataMap.put("nttSj", StrUtil.cleanString(bbsArticleInfo.getNttSj()));
+        dataMap.put("nttCn", StrUtil.cleanString(bbsArticleInfo.getNttCn()));
+        dataMap.put("answerAt", bbsArticleInfo.getAnswerAt());
+        dataMap.put("parntscttNo", bbsArticleInfo.getParntscttNo());
+        dataMap.put("answerLc", bbsArticleInfo.getAnswerLc());
+        dataMap.put("sortOrdr", bbsArticleInfo.getSortOrdr());
+        dataMap.put("useAt", bbsArticleInfo.getUseAt());
+        dataMap.put("ntceBgnde", bbsArticleInfo.getNtceBgnde());
+        dataMap.put("ntceEndde", bbsArticleInfo.getNtceEndde());
+        dataMap.put("ntcrId", bbsArticleInfo.getNtcrId());
+        dataMap.put("ntcrNm", bbsArticleInfo.getNtcrNm());
+        dataMap.put("atchFileId", bbsArticleInfo.getAtchFileId());
+        dataMap.put("noticeAt", bbsArticleInfo.getNoticeAt());
+        dataMap.put("sjBoldAt", bbsArticleInfo.getSjBoldAt());
+        dataMap.put("secretAt", bbsArticleInfo.getSecretAt());
+        dataMap.put("frstRegistPnttm", bbsArticleInfo.getFrstRegistPnttm());
+        
+        // 임베딩이 필요한 경우
+        if (withEmbedding) {
+            String combinedText = StrUtil.cleanString(bbsArticleInfo.getNttSj() + " " + bbsArticleInfo.getNttCn());
+            Embedding bbsArticleResponse = embeddingModel.embed(combinedText).content();
+            dataMap.put("bbsArticleEmbedding", bbsArticleResponse.vector());
+        }
+        
+        return dataMap;
+    }
+	
+	private void executeBulkRequest(BulkRequest.Builder builder, int currentPage, int totalPages) {
+        try {
+            BulkResponse bulkResponse = client.bulk(builder.build());
+            if (bulkResponse.errors()) {
+                bulkResponse.items().forEach(item -> {
+                    if (item.error() != null) {
+                        log.error("Error indexing document with ID: {} , Error: {}", 
+                                item.id(), item.error().reason());
+                    }
+                });
+            } else {
+                log.debug("Batch {}/{} completed successfully", currentPage + 1, totalPages);
+            }
+        } catch (Exception e) {
+            log.error("Error executing bulk request for page {}: {}", currentPage + 1, e.getMessage());
+        }
+    }
+	
+	private void logPageProgress(int currentPage, int totalPages, long startTime) {
+        long executionTime = (System.currentTimeMillis() - startTime) / 1000;
+        log.info("Processed page {}/{} in {} seconds", 
+                currentPage + 1, totalPages, executionTime);
+    }
+	
+	private void logTotalExecutionTime(long startTime) {
+        long totalTime = (System.currentTimeMillis() - startTime) / 1000;
+        log.info("Total indexing process completed in {} seconds", totalTime);
+    }
 }
