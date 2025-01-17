@@ -2,7 +2,7 @@ package egovframework.com.ext.ops.service.impl;
 
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +25,7 @@ import org.opensearch.client.opensearch._types.analysis.PatternReplaceCharFilter
 import org.opensearch.client.opensearch._types.analysis.SynonymGraphTokenFilter;
 import org.opensearch.client.opensearch._types.analysis.TokenFilter;
 import org.opensearch.client.opensearch._types.analysis.Tokenizer;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.core.BulkRequest;
 import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
@@ -80,9 +81,176 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 	
 	private final ComtnbbsRepository comtnbbsRepository;
 	
+	private Map<String, CharFilter> createCharFilters() {
+		Map<String, CharFilter> charFilterMap = new HashMap<>();
+		
+		// 줄바꿈 및 \를 공백으로 대체
+		PatternReplaceCharFilter patternCharFilter = new PatternReplaceCharFilter.Builder().pattern("[\\r\\n\\\\]").replacement(" ").flags("CASE_INSENSITIVE|MULTILINE").build();
+		charFilterMap.put("patternfilter", new CharFilter.Builder().definition(patternCharFilter._toCharFilterDefinition()).build());
+		
+		// remove punctuation chars : 구두점을 제거한다
+		PatternReplaceCharFilter punctuationCharFilter = new PatternReplaceCharFilter.Builder().pattern("\\p{Punct}").replacement("").flags("CASE_INSENSITIVE|MULTILINE").build();
+		charFilterMap.put("punctuationCharFilter", new CharFilter.Builder().definition(punctuationCharFilter._toCharFilterDefinition()).build());
+		
+		 return charFilterMap;
+	}
+	
+	
+	private Map<String, TokenFilter> createTokenFilters() {
+		Map<String, TokenFilter> tokenFilterMap = new HashMap<>();
+		
+		// 제거할 품사의 종류를 열거한다. 코드가 의미하는 품사는 다음 페이지를 참조한다
+		// https://esbook.kimjmin.net/06-text-analysis/6.7-stemming/6.7.2-nori
+		List<String> stopTags = StrUtil.readWordsFromFile(stopTagsPath);
+		
+		// 동의어로 처리될 단어를 열거한다.
+		List<String> synonym = StrUtil.readWordsFromFile(synonymsPath);
+		
+		tokenFilterMap.put("lowercase", new TokenFilter.Builder().definition(new LowercaseTokenFilter.Builder().build()._toTokenFilterDefinition()).build());
+		tokenFilterMap.put("asciifolding", new TokenFilter.Builder().definition(new AsciiFoldingTokenFilter.Builder().preserveOriginal(false).build()._toTokenFilterDefinition()).build());
+		tokenFilterMap.put("nori_part_of_speech", new TokenFilter.Builder().definition(new NoriPartOfSpeechTokenFilter.Builder().stoptags(stopTags).build()._toTokenFilterDefinition()).build());
+		tokenFilterMap.put("synonym_graph", new TokenFilter.Builder().definition(new SynonymGraphTokenFilter.Builder().synonyms(synonym).expand(true).build()._toTokenFilterDefinition()).build());
+	
+		return tokenFilterMap;
+	}
+	
+	private Map<String, Tokenizer> createTokenizers() {
+		// 분할처리하면 안되는 단어를 열거한다.
+		List<String> userDictionaryRules = StrUtil.readWordsFromFile(dictionaryRulesPath);
+		
+		// 한글형태소분석기인 Nori 플러그인이 미리 설치되어 있어야 함
+		NoriTokenizer noriTokenizer = new NoriTokenizer.Builder()
+				.decompoundMode(NoriDecompoundMode.Discard)
+				.discardPunctuation(true)
+				.userDictionaryRules(userDictionaryRules)
+				.build();
+		
+		Map<String, Tokenizer> tokenizerMap = new HashMap<>();
+		
+		tokenizerMap.put("nori-tokenizer", new Tokenizer.Builder().definition(noriTokenizer._toTokenizerDefinition()).build());
+		
+		return tokenizerMap;
+	}
+	
+	private Map<String, Analyzer> createAnalyzers(List<String> charFilterList, List<String> tokenFilterList) {
+		// 커스텀 Analyzer 구성 : char_filter ==> tokenizer ==> token filter
+		CustomAnalyzer noriAnalyzer = new CustomAnalyzer.Builder()
+				.charFilter(charFilterList)
+				.tokenizer("nori-tokenizer")
+				.filter(tokenFilterList).build();
+		
+		Map<String, Analyzer> analyzerMap = new HashMap<>();
+		
+		analyzerMap.put("nori-analyzer", new Analyzer.Builder().custom(noriAnalyzer).build());
+		
+		return analyzerMap;
+	}
+	
+	private void createIndexInternal(String indexName, boolean enableKnn) throws IOException {
+		Map<String, CharFilter> charFilterMap = createCharFilters();
+		Map<String, TokenFilter> tokenFilterMap = createTokenFilters();
+		Map<String, Tokenizer> tokenizerMap = createTokenizers();
+		
+		List<String> charFilterList = Arrays.asList("patternfilter", "punctuationCharFilter");
+		// nori_number : 한국어 숫자의 검색을 가능하게 함
+		// nori_part_of_speech : 한자의 한국어 검색을 가능하게 함
+		List<String> tokenFilterList = Arrays.asList(
+	            "lowercase", "asciifolding", "synonym_graph",
+	            "nori_number", "nori_readingform", "nori_part_of_speech"
+	        );
+		
+		Map<String, Analyzer> analyzerMap = createAnalyzers(charFilterList, tokenFilterList);
+		
+		CreateIndexRequest.Builder requestBuilder = new CreateIndexRequest.Builder()
+				.index(indexName)
+				.settings(s-> {
+					if (enableKnn) {
+	                    s.knn(true);
+	                }
+					return s.analysis(a-> a
+							.charFilter(charFilterMap)
+		                    .tokenizer(tokenizerMap)
+		                    .filter(tokenFilterMap)
+		                    .analyzer(analyzerMap));
+				});
+		
+		// 각 필드를 추가
+		addMappings(requestBuilder, enableKnn);
+		
+		try {
+			CreateIndexResponse createIndexResponse = client.indices().create(requestBuilder.build());
+            log.debug(String.format("Index %s.", createIndexResponse.index().toString().toLowerCase()));
+		} catch(OpenSearchException ex) {
+			final String errorType = Objects.requireNonNull(ex.response().error().type());
+            if (! errorType.equals("resource_already_exists_exception")) {
+                throw ex;
+            }
+		}
+	}
+	
+	private void addMappings(CreateIndexRequest.Builder builder, boolean includeEmbedding) {
+	    builder.mappings(mapping -> {
+	        TypeMapping.Builder mappingBuilder = mapping
+	        		.properties("nttId", 
+	                        p -> p.integer(f -> f.index(true)
+	                            .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
+	                    .properties("bbsId", 
+	                        p -> p.text(f -> f.index(true)
+	                            .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
+	                    .properties("bbsNm", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("nttNo", 
+	                        p -> p.integer(f -> f.index(true)))
+	                    .properties("nttSj", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("nttCn", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("answerAt", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("parntscttNo", 
+	                        p -> p.integer(f -> f.index(true)))
+	                    .properties("answerLc", 
+	                        p -> p.integer(f -> f.index(true)))
+	                    .properties("sortOrdr", 
+	                        p -> p.integer(f -> f.index(true)))
+	                    .properties("useAt", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("ntceBgnde", 
+	                        p -> p.date(f -> f.index(true)))
+	                    .properties("ntceEndde", 
+	                        p -> p.date(f -> f.index(true)))
+	                    .properties("ntcrId", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("ntcrNm", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("atchFileId", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("noticeAt", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("sjBoldAt", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("secretAt", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+	                    .properties("frstRegistPnttm", 
+	                        p -> p.date(f -> f.index(true)))
+	                    .properties("lastUpdtPnttm", 
+	                        p -> p.date(f -> f.index(true)))
+	                    .properties("frstRegisterId", 
+	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")));
+
+	        if (includeEmbedding) {
+	            mappingBuilder = mappingBuilder.properties("bbsArticleEmbedding", 
+	                p -> p.knnVector(k -> k.dimension(768)));
+	        }
+	        
+	        return mappingBuilder;
+	    });
+	}
+	
 	@Override
 	public void createTextIndex() throws IOException {
-		
+		 createIndexInternal(textIndexName, false);
+		/*
 		Map<String, Tokenizer> tokenizerMap = new HashMap<>();
 		Map<String, Analyzer> analyzerMap = new HashMap<>();
 		Map<String, TokenFilter> tokenFilterMap = new HashMap<>();
@@ -305,11 +473,13 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
                 throw ex;
             }
         }
+        */
 	}
 
 	@Override
 	public void createEmbeddingIndex() throws IOException {
-		
+		createIndexInternal(embeddingIndexName, true);
+		/*
 		Map<String, Tokenizer> tokenizerMap = new HashMap<>();
 		Map<String, Analyzer> analyzerMap = new HashMap<>();
 		Map<String, TokenFilter> tokenFilterMap = new HashMap<>();
@@ -537,6 +707,7 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
                 throw ex;
             }
         }
+        */
 	}
 
 	@Override
