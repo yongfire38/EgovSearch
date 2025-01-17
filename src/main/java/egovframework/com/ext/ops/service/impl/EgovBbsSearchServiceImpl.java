@@ -144,7 +144,7 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 					.must(m -> m.match(mt -> mt.field("useAt").query(FieldValue.of("Y"))))
 				));
 				
-				// qestnEmbedding 컬럼을 대상으로 벡터 검색 (유사한 순으로 egov.embeddingsearch.count 에 기재된 건수만큼 조회. 디폴트는 5건)
+				// bbsArticleEmbedding 컬럼을 대상으로 벡터 검색 (유사한 순으로 egov.embeddingsearch.count 에 기재된 건수만큼 조회. 디폴트는 5건)
 				SearchResponse<BoardEmbeddingVO> searchResponse = client.search(builder.build(), BoardEmbeddingVO.class);
 				
 				// 유사도 점수 추가
