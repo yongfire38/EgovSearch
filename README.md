@@ -32,17 +32,22 @@ export OPENSEARCH_INITIAL_ADMIN_PASSWORD=<custom-admin-password>
 
 docker-compose up
 ```
+![capture01](https://github.com/user-attachments/assets/fe4361d5-0664-42e9-a0f3-1bbe1295103c)
 
 ### Dashboard
 
 - Dashboard의 기본 설정 포트는 5601이다.
 - `http://localhost:5601/app/login?`
-- `Docker-compose.yml` 에 설정하였던 패스워드로 로그인하여 open search 관리자 메뉴를 확인 가능하다.
+- `Docker-compose.yml` 에 설정하였던 패스워드로 로그인하여 open search 관리자 메뉴를 확인 가능하다.   
+
+![capture02](https://github.com/user-attachments/assets/7d1fd695-3f7e-4426-8016-96a68a6201e2)
 
 ### SSL 환경 KeyStore 설정
 
 - 클라이언트 측, 즉 개발자가 본인 PC의 KeyStore에 SSL인증서를 등록해야 한다.
-- usr/share/opensearch/config 내의 root-ca.pem을 서버로부터 `jdk 내부 lib > security`에 복사한다. 
+- usr/share/opensearch/config 내의 root-ca.pem을 서버로부터 `jdk 내부 lib > security`에 복사한다.
+![capture03](https://github.com/user-attachments/assets/b27c407e-47d0-4fa1-b9eb-4628e2c904be)
+
 - CMD를 관리자 권한으로 열고 해당 폴더로 접근 후 KeyStore 등록 및 확인 절차를 진행한다.
 
 ```bash
@@ -81,16 +86,28 @@ ls
 
 # 설치 후 각 노드를 재시작한다
 ```
+![capture04](https://github.com/user-attachments/assets/471d8dec-4169-443d-9c97-175290f9a69d)
 
 - 설치가 완료되었다면 Open Search Dash Board 페이지의 `좌측 메뉴 > Management > Dev Tools` 에서 `GET _cat/plugins`으로 설치된 플러그인 리스트를 확인 가능하다.
+
+![capture05](https://github.com/user-attachments/assets/b380f6b7-97df-431b-ab93-9a6dc3614076)   
+![capture06](https://github.com/user-attachments/assets/1a1cd29a-c742-481e-af2f-f47042b59c26)
+
 
 ### 기타 파일 설정
 
 - 프로젝트 루트 경로의 example 디렉토리 내에 위치한 파일은 Open Search의 검색 옵션에 관련된 내용이 기재되어 있다. 필요에 따라 임의로 설정하여 주면 된다.
 
-1. dictionaryRules.txt : 기본적으로 Open Search는 형태소를 분해하여 저장(ex : '동해물과' -> '동해', '물', '과')하지만, 분해를 원하지 않는 경우는 해당 파일에 명시하면 된다
-2. synonyms.txt :  동의어 처리할 단어를 열거하여 준다
-3. stoptags.txt : 한글 검색에서는 보통 명사, 동명사 정도만을 검색하고 조사, 형용사 등은 제거하는 것이 바람직하므로 제거할 품사를 해당 파일에 명시해 준다. 품사의 정보는 [해당 페이지](https://esbook.kimjmin.net/06-text-analysis/6.7-stemming/6.7.2-nori)를 참고한다
+1. dictionaryRules.txt : 기본적으로 Open Search는 형태소를 분해하여 저장(ex : '동해물과' -> '동해', '물', '과')하지만, 분해를 원하지 않는 경우는 해당 파일에 명시하면 된다.
+2. synonyms.txt :  동의어 처리할 단어를 열거하여 준다.
+3. stoptags.txt : 한글 검색에서는 보통 명사, 동명사 정도만을 검색하고 조사, 형용사 등은 제거하는 것이 바람직하므로 제거할 품사를 해당 파일에 명시해 준다. 품사의 정보는 [해당 페이지](https://esbook.kimjmin.net/06-text-analysis/6.7-stemming/6.7.2-nori)를 참고한다.
+
+- `동해물과`라는 단어를 분해하는 예시   
+![capture07](https://github.com/user-attachments/assets/4bac6e74-f595-4a01-a011-f5b3928bb296)   
+- 일반적으로 형태소 분해를 수행한 경우  
+![capture08](https://github.com/user-attachments/assets/07a891e1-fbc9-4812-831c-3bab67af5401)   
+- `해물`이라는 단어를 분해 금지 설정한 경우, 분해되지 않는 것을 확인 가능하다   
+![capture09](https://github.com/user-attachments/assets/33c7894c-5719-4d3c-bfa3-c49c20476e29)   
 
 - 루트 경로의 `docker-compose\RabbitMQ` 내의 `docker-compose.yml`에는 `RabbitMQ`를 Docker Container에서 실행하기 위한 설정이 기재되어 있다. 초기 id 와 password는 `guest/guest`이다.
 
@@ -134,6 +151,8 @@ optimum-cli export onnx -m jhgan/ko-sroberta-multitask .
 
 - 기능 확인 및 테스트 편의를 위해, Open Search의 Index 생성 및 삭제, 초기 데이터 입력을 수행하는 API를 Springdoc (구 Swagger)로 제공한다.
 - 초기 설정 기준으로 `http://localhost:9993/swagger-ui/index.html#/` 에서 확인 및 실행이 가능하다.
+
+  ![capture10](https://github.com/user-attachments/assets/cd191b8c-8042-4c5e-8993-47675c597499)   
 
 1. `/createEmbeddingIndex` : Embedding 필드가 포함된 Index 를 생성한다. Index 자체만 생성하므로 실행 완료 시점에서는 Index 내 문서 데이터는 존재하지 않는다. 인덱스 명은 `application.properties` 파일에 정의된 `opensearch.embedding.indexname` 값을 따른다.
 2. `/createTextIndex` : 텍스트 필드만 존재하는 Index 를 생성한다. 초기 설정 기준으로 두 Index를 모두 만들어 줘야 한다. 인덱스 명은 `application.properties` 파일에 정의된 `opensearch.text.indexname` 값을 따른다.
@@ -198,7 +217,6 @@ optimum-cli export onnx -m jhgan/ko-sroberta-multitask .
 - `egov.embeddingsearch.count` : 벡터 검색 시, 제공할 결과의 전체 데이터 수
 - `egov.embeddingsearch.page.size` : 벡터 검색 시, 한 페이지에 보여 줄 데이터 수
 
-
 ## 구동 및 확인
 
 - 초기 설정 기준으로 브라우저에서 `http://localhost:9993/` 로 검색 메인 화면을 확인 가능하다. 해당 화면에서  Open Search Index에 대한 match 검색 및 Vector 검색을 수행할 수 있다.
@@ -208,6 +226,7 @@ optimum-cli export onnx -m jhgan/ko-sroberta-multitask .
 ## 검색 방식
 
 - 본 Open Search 연동 검색에서는 Match Query 방식을 사용한 Full-Text 검색과 벡터 검색 2가지의 방식을 제공하고 있다.
+  
 ###  Match Query
 
 - 질의어를 분석하여 지정된 필드에서 전체 텍스트를 검색한다.
