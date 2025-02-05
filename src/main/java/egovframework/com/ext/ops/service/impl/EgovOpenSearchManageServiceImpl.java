@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.annotation.PostConstruct;
-
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
@@ -31,6 +29,7 @@ import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexRequest;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,7 +51,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service("openSearchManageService")
 @Slf4j
 @RequiredArgsConstructor
-public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl implements EgovOpenSearchManageService {
+public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl 
+	implements EgovOpenSearchManageService, InitializingBean {
 	
 	public static final String stopTagsPath = Paths.get(System.getProperty("user.dir")).resolve("example").resolve("stoptags.txt").toString();
 	public static final String synonymsPath = Paths.get(System.getProperty("user.dir")).resolve("example").resolve("synonyms.txt").toString();
@@ -71,9 +71,9 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
     public int batchSize;
 	
 	private EmbeddingModel embeddingModel;
-
-    @PostConstruct
-    public void init() {
+	
+	@Override
+    public void afterPropertiesSet() {
         embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
     }
 	
@@ -145,6 +145,65 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 		return analyzerMap;
 	}
 	
+	private void addMappings(CreateIndexRequest.Builder builder, boolean includeEmbedding) {
+	    builder.mappings(mapping -> {
+	        TypeMapping.Builder mappingBuilder = mapping
+		        	.properties("nttId", 
+		                    p -> p.integer(f -> f.index(true)
+		                        .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
+		            .properties("bbsId", 
+		                p -> p.text(f -> f.index(true)
+		                    .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
+		            .properties("bbsNm", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("nttNo", 
+		                p -> p.integer(f -> f.index(true)))
+		            .properties("nttSj", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("nttCn", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("answerAt", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("parntscttNo", 
+		                p -> p.integer(f -> f.index(true)))
+		            .properties("answerLc", 
+		                p -> p.integer(f -> f.index(true)))
+		            .properties("sortOrdr", 
+		                p -> p.integer(f -> f.index(true)))
+		            .properties("useAt", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("ntceBgnde", 
+		                p -> p.date(f -> f.index(true)))
+		            .properties("ntceEndde", 
+		                p -> p.date(f -> f.index(true)))
+		            .properties("ntcrId", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("ntcrNm", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("atchFileId", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("noticeAt", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("sjBoldAt", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("secretAt", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
+		            .properties("frstRegistPnttm", 
+		                p -> p.date(f -> f.index(true)))
+		            .properties("lastUpdtPnttm", 
+		                p -> p.date(f -> f.index(true)))
+		            .properties("frstRegisterId", 
+		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")));
+
+	        if (includeEmbedding) {
+	            mappingBuilder = mappingBuilder.properties("bbsArticleEmbedding", 
+	                p -> p.knnVector(k -> k.dimension(768)));
+	        }
+	        
+	        return mappingBuilder;
+	    });
+	}
+	
 	private void createIndexInternal(String indexName, boolean enableKnn) throws IOException {
 		Map<String, CharFilter> charFilterMap = createCharFilters();
 		Map<String, TokenFilter> tokenFilterMap = createTokenFilters();
@@ -187,65 +246,6 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 		}
 	}
 	
-	private void addMappings(CreateIndexRequest.Builder builder, boolean includeEmbedding) {
-	    builder.mappings(mapping -> {
-	        TypeMapping.Builder mappingBuilder = mapping
-	        		.properties("nttId", 
-	                        p -> p.integer(f -> f.index(true)
-	                            .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
-	                    .properties("bbsId", 
-	                        p -> p.text(f -> f.index(true)
-	                            .fields("keyword", k -> k.keyword(kw -> kw.ignoreAbove(256)))))
-	                    .properties("bbsNm", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("nttNo", 
-	                        p -> p.integer(f -> f.index(true)))
-	                    .properties("nttSj", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("nttCn", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("answerAt", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("parntscttNo", 
-	                        p -> p.integer(f -> f.index(true)))
-	                    .properties("answerLc", 
-	                        p -> p.integer(f -> f.index(true)))
-	                    .properties("sortOrdr", 
-	                        p -> p.integer(f -> f.index(true)))
-	                    .properties("useAt", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("ntceBgnde", 
-	                        p -> p.date(f -> f.index(true)))
-	                    .properties("ntceEndde", 
-	                        p -> p.date(f -> f.index(true)))
-	                    .properties("ntcrId", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("ntcrNm", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("atchFileId", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("noticeAt", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("sjBoldAt", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("secretAt", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")))
-	                    .properties("frstRegistPnttm", 
-	                        p -> p.date(f -> f.index(true)))
-	                    .properties("lastUpdtPnttm", 
-	                        p -> p.date(f -> f.index(true)))
-	                    .properties("frstRegisterId", 
-	                        p -> p.text(f -> f.index(true).analyzer("nori-analyzer")));
-
-	        if (includeEmbedding) {
-	            mappingBuilder = mappingBuilder.properties("bbsArticleEmbedding", 
-	                p -> p.knnVector(k -> k.dimension(768)));
-	        }
-	        
-	        return mappingBuilder;
-	    });
-	}
-	
 	@Override
 	public void createTextIndex() throws IOException {
 		 createIndexInternal(textIndexName, false);
@@ -258,23 +258,15 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
 
 	@Override
 	public void insertTotalData() {		
-		processIndexing(false, textIndexName);
+		processIndexing(textIndexName, false);
 	}
 
 	@Override
 	public void insertTotalEmbeddingData() {
-		processIndexing(true, embeddingIndexName);
+		processIndexing(embeddingIndexName, true);
 	}
 	
-	@Override
-	public void deleteIndex(String indexName) throws IOException {
-		DeleteIndexRequest deleteRequest = new DeleteIndexRequest.Builder().index(indexName).build();
-        client.indices().delete(deleteRequest);
-        log.debug(String.format("Index %s.", deleteRequest.index().toString().toLowerCase()));
-		
-	}
-	
-	private void processIndexing(boolean withEmbedding, String indexName) {
+	private void processIndexing(String indexName, boolean withEmbedding) {
         long startTime = System.currentTimeMillis();
         
         // 전체 데이터 수와 페이지 수 계산
@@ -385,4 +377,12 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
         long totalTime = (System.currentTimeMillis() - startTime) / 1000;
         log.info("Total indexing process completed in {} seconds", totalTime);
     }
+	
+	@Override
+	public void deleteIndex(String indexName) throws IOException {
+		DeleteIndexRequest deleteRequest = new DeleteIndexRequest.Builder().index(indexName).build();
+        client.indices().delete(deleteRequest);
+        log.debug(String.format("Index %s.", deleteRequest.index().toString().toLowerCase()));
+		
+	}
 }
