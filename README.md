@@ -112,6 +112,7 @@ ls
 ![capture09](https://github.com/user-attachments/assets/33c7894c-5719-4d3c-bfa3-c49c20476e29)   
 
 ## RabbitMQ 설정
+
 - 게시판 애플리케이션에서 작성된 데이터를 Open Search Index에 반영하기 위해 `spring-cloud-stream-binder-rabbit`을 이용한 메시지 기반 연동을 수행하고 있다.
 - 루트 경로의 `docker-compose\RabbitMQ` 내의 `docker-compose.yml`에는 `RabbitMQ`를 Docker Container에서 실행하기 위한 설정이 기재되어 있다. 초기 id 와 password는 `guest/guest`이다.
 - `Queue` 및 `Binder` 설정은 `application.properties`에서 확인 가능하다.
