@@ -17,11 +17,13 @@
 | Java   | 1.8 이상 |
 | Docker | 4.38.0 |
 | Python | 3.11.5 |
+
 ## Open Search 설정
 
 - Open Search의 실행은 [Download & Get Started](https://opensearch.org/downloads.html) 페이지에서 `docker-compose.yml`을 다운로드 받거나, 해당 프로젝트의 파일을 사용한다.
 - 기본적으로 opensearch-node1, opensearch-node2, opensearch-dashboard 의 3개 서비스로 구성되어 있다.
 - Java heap size는 `OPENSEARCH_JAVA_OPTS` 에서 설정 가능하며 ram의 50%까지는 설정하는 것을 추천한다.
+
 ### Docker Compose 실행
 
 패스워드는 `docker-compose up` 실행 전에 임의로 환경 변수를 설정하거나, `.env` 파일을 활용하여 설정할 수 있다. 단순 문자열은 실행 시 오류가 발생하므로 대소문자 및 특문을 넣어 설정하여 주도록 한다.
@@ -109,7 +111,10 @@ ls
 - `해물`이라는 단어를 분해 금지 설정한 경우, 분해되지 않는 것을 확인 가능하다   
 ![capture09](https://github.com/user-attachments/assets/33c7894c-5719-4d3c-bfa3-c49c20476e29)   
 
+## RabbitMQ 설정
+- 게시판 애플리케이션에서 작성된 데이터를 Open Search Index에 반영하기 위해 `spring-cloud-stream-binder-rabbit`을 이용한 메시지 기반 연동을 수행하고 있다.
 - 루트 경로의 `docker-compose\RabbitMQ` 내의 `docker-compose.yml`에는 `RabbitMQ`를 Docker Container에서 실행하기 위한 설정이 기재되어 있다. 초기 id 와 password는 `guest/guest`이다.
+- `Queue` 및 `Binder` 설정은 `application.properties`에서 확인 가능하다.
 
 ## Onnx 모델 익스포트
 
@@ -139,13 +144,13 @@ python -m pip install --upgrade pip
 # 필요한 패키지들을 설치한다
 pip install optimum onnx onnxruntime sentence-transformers
 
-# 현재 경로에 jhgan/ko-sroberta-multitask 모델을 onnx 형식으로 내보낸다
+# 현재 경로에 jhgan/ko-sroberta-multitask 모델을 onnx 포맷으로 내보낸다
 optimum-cli export onnx -m jhgan/ko-sroberta-multitask .
 ```
 
 - 익스포트가 완료되면 Embedding에 사용되는 `tokenizer.json` 및 `model.onnx` 파일이 생성된다.
 - 해당 파일들은 프로젝트 루트 경로의 model 디렉토리에 위치시켜 준다.
-- 상세 정보는 Spring에서 제공하는 [공식 문서](https://docs.spring.io/spring-ai/reference/api/embeddings/onnx.html#_prerequisites) 를 참조한다.
+- 상세 정보는 Spring에서 제공하는 [공식 문서](https://docs.spring.io/spring-ai/reference/api/embeddings/onnx.html#_prerequisites) 를 참조 가능하다.
 
 ## Open Search 관련 API 설명
 
