@@ -46,6 +46,7 @@ public class EgovOpenSearchServiceImpl implements EgovOpenSearchService {
             
     private final OpenSearchClient client;
     
+    @Override
     public void processOpenSearchOperations(Long nttId, BoardVO boardVO) {
         try {
             performOpenSearchTextOperation(nttId, boardVO);
