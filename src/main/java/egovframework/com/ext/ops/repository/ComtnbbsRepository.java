@@ -24,7 +24,7 @@ public interface ComtnbbsRepository extends JpaRepository<Comtnbbs, ComtnbbsId> 
 	           "c.bbsTyCode, c.replyPosblAt, c.fileAtchPosblAt, c.atchPosblFileNumber, c.bbsNm) " +
 	           "FROM Comtnbbs a " +
 	           "LEFT JOIN Comvnusermaster b ON a.frstRegisterId = b.esntlId " +
-	           "LEFT JOIN a.comtnbbsmaster c " +
+	           "LEFT JOIN Comtnbbsmaster c ON a.comtnbbsId.bbsId = c.bbsId " +
 	           "WHERE a.comtnbbsId.nttId = :nttId")
 	    Optional<BBSDTO> findBBSDTOByNttId(@Param("nttId") Long nttId);
 
@@ -36,7 +36,7 @@ public interface ComtnbbsRepository extends JpaRepository<Comtnbbs, ComtnbbsId> 
 	           "c.bbsTyCode, c.replyPosblAt, c.fileAtchPosblAt, c.atchPosblFileNumber, c.bbsNm) " +
 	           "FROM Comtnbbs a " +
 	           "LEFT JOIN Comvnusermaster b ON a.frstRegisterId = b.esntlId " +
-	           "LEFT JOIN a.comtnbbsmaster c " +
+	           "LEFT JOIN Comtnbbsmaster c ON a.comtnbbsId.bbsId = c.bbsId " +
 	           "WHERE a.useAt = 'Y'")
 	    Page<BBSDTO> findAllArticlesWithPaging(Pageable pageable);
 	    

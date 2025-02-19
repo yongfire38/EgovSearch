@@ -5,9 +5,6 @@ import java.time.LocalDateTime;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.MapsId;
 import javax.persistence.Table;
 
 import lombok.Data;
@@ -20,11 +17,6 @@ public class Comtnbbs {
 	// NTT_ID, BBS_ID
     @EmbeddedId
     private ComtnbbsId comtnbbsId;
-
-    @ManyToOne
-    @MapsId("bbsId")
-    @JoinColumn(name = "BBS_ID", referencedColumnName = "BBS_ID")
-    private Comtnbbsmaster comtnbbsmaster;
 
     @Column(name = "NTT_NO")
     private Long nttNo;
@@ -94,9 +86,5 @@ public class Comtnbbs {
 
     @Column(name = "BLOG_ID")
     private String blogId;
-
-    @ManyToOne
-    @JoinColumn(name = "FRST_REGISTER_ID", insertable = false, updatable = false)
-    Comvnusermaster userList;
 
 }

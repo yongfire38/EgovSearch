@@ -49,6 +49,4 @@ public class Comvnusermaster {
     @Column(name = "ORGNZT_ID")
     private String orgnztId;
 
-    @OneToMany(mappedBy = "userList")
-    private List<Comtnbbs> comtnQustnrIems;
 }

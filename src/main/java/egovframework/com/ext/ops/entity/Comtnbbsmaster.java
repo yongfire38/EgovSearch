@@ -1,12 +1,10 @@
 package egovframework.com.ext.ops.entity;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 import lombok.Data;
@@ -19,12 +17,6 @@ public class Comtnbbsmaster {
 	@Id
     @Column(name = "BBS_ID")
     private String bbsId;
-
-    @OneToMany(mappedBy = "comtnbbsmaster")
-    private List<Comtnbbsuse> comtnbbsuse;
-
-    @OneToMany(mappedBy = "comtnbbsmaster")
-    private List<Comtnbbs> comtnbbs;
 
     @Column(name = "BBS_NM")
     private String bbsNm;
