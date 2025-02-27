@@ -1,0 +1,86 @@
+server:
+  port: 9993
+  tomcat:
+    connection-timeout: -1
+
+spring:
+  application:
+    name: ext.ops
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.100.82:3306/com?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: com
+    password: com01
+  jpa:
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  cloud:
+    stream:
+      bindings:
+        searchConsumer-in-0:
+          destination: board-topic
+          group: search-service
+          binder: rabbit
+    function:
+      definition: searchConsumer
+
+logging:
+  level:
+    org.springframework.boot.autoconfigure: error
+    org.springframework.web: debug
+    egovframework.rte: debug
+    egovframework.com: debug
+
+springdoc:
+  version: v4.3.0
+  packages-to-scan: egovframework
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
+    doc-expansion: none
+  api-docs:
+    path: /v3/api-docs
+    groups:
+      enabled: true
+  cache:
+    disabled: true
+
+opensearch:
+  protocol: https
+  url: localhost
+  port: 9200
+  username: admin
+  password: yourStrongPassword123!
+  keystore:
+    path: C:\Program Files\Java\jdk-11.0.5\lib\security\cacerts
+    password: changeit
+  text:
+    indexname: text-bbs-index
+  vector:
+    indexname: vector-bbs-index
+  model:
+    path: C:\workspace_git_opensearch\EgovSearch\model
+  example:
+    path: C:\workspace_git_opensearch\EgovSearch\example
+
+index:
+  batch:
+    size: 1000
+
+egov:
+  textsearch:
+    count: 10
+    page:
+      size: 5
+  vectorsearch:
+    count: 5
+    page:
+      size: 5
+
+app:
+  search-config-path: ./searchConfig.json

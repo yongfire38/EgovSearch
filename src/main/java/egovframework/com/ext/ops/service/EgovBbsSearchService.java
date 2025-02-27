@@ -6,5 +6,5 @@ public interface EgovBbsSearchService {
 
 	public Page<BoardVO> textSearch(BoardVO boardVO) throws Exception;
 	
-	public Page<BoardEmbeddingVO> embeddingSearch(BoardVO boardVO) throws Exception;
+	public Page<BoardVectorVO> vectorSearch(BoardVO boardVO) throws Exception;
 }

@@ -29,10 +29,10 @@ public class EgovBbsSearchController {
         return "textSearchResult";
     }
     
-    @PostMapping(value="/ext/ops/embeddingSearchResultView")
-    public String embeddingSearchResultView(BoardVO boardVO, Model model) {
+    @PostMapping(value="/ext/ops/vectorSearchResultView")
+    public String vectorSearchResultView(BoardVO boardVO, Model model) {
         model.addAttribute("BoardVO", boardVO);
         log.debug(boardVO.toString());
-        return "embeddingSearchResult";
+        return "vectorSearchResult";
     }
 }

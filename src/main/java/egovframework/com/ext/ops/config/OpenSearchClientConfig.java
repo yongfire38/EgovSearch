@@ -49,7 +49,7 @@ public class OpenSearchClientConfig {
     public String password;
     
     // HTTPS Settings
-    @Value("${opensearch.keystore}")
+    @Value("${opensearch.keystore.path}")
     private String keystorePath;
     @Value("${opensearch.keystore.password}")
     private String keystorePassword;

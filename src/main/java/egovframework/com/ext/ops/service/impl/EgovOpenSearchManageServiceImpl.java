@@ -1,12 +1,15 @@
 package egovframework.com.ext.ops.service.impl;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -29,6 +32,7 @@ import org.opensearch.client.opensearch.core.BulkResponse;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexRequest;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -37,13 +41,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.google.gson.Gson;
+
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.PoolingMode;
+import egovframework.com.ext.ops.config.SearchConfig;
+import egovframework.com.ext.ops.entity.Comtnbbssynclog;
 import egovframework.com.ext.ops.repository.ComtnbbsRepository;
+import egovframework.com.ext.ops.repository.ComtnbbssynclogRepository;
 import egovframework.com.ext.ops.service.BBSDTO;
+import egovframework.com.ext.ops.service.BoardVO;
 import egovframework.com.ext.ops.service.EgovOpenSearchManageService;
+import egovframework.com.ext.ops.service.EgovOpenSearchService;
 import egovframework.com.ext.ops.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,33 +64,55 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl 
 	implements EgovOpenSearchManageService, InitializingBean {
+
+	@Value("${app.search-config-path}")
+    private String configPath;
 	
-	public static final String stopTagsPath = Paths.get(System.getProperty("user.dir")).resolve("example").resolve("stoptags.txt").toString();
-	public static final String synonymsPath = Paths.get(System.getProperty("user.dir")).resolve("example").resolve("synonyms.txt").toString();
-	public static final String dictionaryRulesPath = Paths.get(System.getProperty("user.dir")).resolve("example").resolve("dictionaryRules.txt").toString();
-	
-	public static final String modelPath = Paths.get(System.getProperty("user.dir")).resolve("model").resolve("model.onnx").toString();
-	public static final String tokenizerPath = Paths.get(System.getProperty("user.dir")).resolve("model").resolve("tokenizer.json").toString();
+	private String modelPath;
+    private String tokenizerPath;
+    private String stopTagsPath;
+    private String synonymsPath;
+    private String dictionaryRulesPath;
+    
+    private EmbeddingModel embeddingModel;
 	
 	@Value("${opensearch.text.indexname}")
     public String textIndexName;
 	
-	@Value("${opensearch.embedding.indexname}")
-    public String embeddingIndexName;
+	@Value("${opensearch.vector.indexname}")
+    public String vectorIndexName;
 	
 	@Value("${index.batch.size}")
     public int batchSize;
 	
-	private EmbeddingModel embeddingModel;
+	private void loadConfig() {
+        try {
+            String jsonStr = new String(Files.readAllBytes(Paths.get(configPath)));
+            SearchConfig config = new Gson().fromJson(jsonStr, SearchConfig.class);
+            
+            this.modelPath = config.getModelPath();
+            this.tokenizerPath = config.getTokenizerPath();
+            this.stopTagsPath = config.getStopTagsPath();
+            this.synonymsPath = config.getSynonymsPath();
+            this.dictionaryRulesPath = config.getDictionaryRulesPath();
+            
+        } catch (Exception e) {
+            log.error("Failed to load search config: " + e.getMessage());
+            throw new RuntimeException("Failed to load configuration", e);
+        }
+    }
 	
 	@Override
     public void afterPropertiesSet() {
-        embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+		loadConfig();
+		this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
     }
 	
 	private final OpenSearchClient client;
 	
+	private final ComtnbbssynclogRepository comtnbbssynclogRepository;
 	private final ComtnbbsRepository comtnbbsRepository;
+	private final EgovOpenSearchService egovOpenSearchService;
 	
 	private Map<String, CharFilter> createCharFilters() {
 		Map<String, CharFilter> charFilterMap = new HashMap<>();
@@ -145,7 +178,7 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 		return analyzerMap;
 	}
 	
-	private void addMappings(CreateIndexRequest.Builder builder, boolean includeEmbedding) {
+	private void addMappings(CreateIndexRequest.Builder builder, boolean includeVector) {
 	    builder.mappings(mapping -> {
 	        TypeMapping.Builder mappingBuilder = mapping
 		        	.properties("nttId", 
@@ -195,8 +228,8 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 		            .properties("frstRegisterId", 
 		                p -> p.text(f -> f.index(true).analyzer("nori-analyzer")));
 
-	        if (includeEmbedding) {
-	            mappingBuilder = mappingBuilder.properties("bbsArticleEmbedding", 
+	        if (includeVector) {
+	            mappingBuilder = mappingBuilder.properties("bbsArticleVector", 
 	                p -> p.knnVector(k -> k.dimension(768)));
 	        }
 	        
@@ -252,8 +285,8 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 	}
 
 	@Override
-	public void createEmbeddingIndex() throws IOException {
-		createIndexInternal(embeddingIndexName, true);
+	public void createVectorIndex() throws IOException {
+		createIndexInternal(vectorIndexName, true);
 	}
 
 	@Override
@@ -262,11 +295,11 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 	}
 
 	@Override
-	public void insertTotalEmbeddingData() {
-		processIndexing(embeddingIndexName, true);
+	public void insertTotalVectorData() {
+		processIndexing(vectorIndexName, true);
 	}
 	
-	private void processIndexing(String indexName, boolean withEmbedding) {
+	private void processIndexing(String indexName, boolean withVector) {
         long startTime = System.currentTimeMillis();
         
         // 전체 데이터 수와 페이지 수 계산
@@ -285,7 +318,7 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
                 Page<BBSDTO> pageResult = comtnbbsRepository.findAllArticlesWithPaging(pageable);
                 
                 if (!pageResult.isEmpty()) {
-                    processBatchRequest(pageResult.getContent(), withEmbedding, indexName, page, totalPages);
+                    processBatchRequest(pageResult.getContent(), withVector, indexName, page, totalPages);
                 }
                 
                 logPageProgress(page, totalPages, pageStartTime);
@@ -297,13 +330,13 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
         logTotalExecutionTime(startTime);
     }
 	
-	private void processBatchRequest(List<BBSDTO> batchData, boolean withEmbedding, String indexName, int currentPage,
+	private void processBatchRequest(List<BBSDTO> batchData, boolean withVector, String indexName, int currentPage,
 			int totalPages) {
 		BulkRequest.Builder bulkRequestBuilder = new BulkRequest.Builder();
 
 		batchData.forEach(bbsArticleInfo -> {
 			try {
-				Map<String, Object> dataMap = convertToMap(bbsArticleInfo, withEmbedding);
+				Map<String, Object> dataMap = convertToMap(bbsArticleInfo, withVector);
 				bulkRequestBuilder.operations(ops -> ops
 						.index(idx -> idx.index(indexName).id(String.valueOf(dataMap.get("nttId"))).document(dataMap)));
 			} catch (Exception e) {
@@ -314,7 +347,7 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 		executeBulkRequest(bulkRequestBuilder, currentPage, totalPages);
 	}
 	
-	private Map<String, Object> convertToMap(BBSDTO bbsArticleInfo, boolean withEmbedding) {
+	private Map<String, Object> convertToMap(BBSDTO bbsArticleInfo, boolean withVector) {
         Map<String, Object> dataMap = new HashMap<>();
         
         // 기본 필드 매핑
@@ -340,10 +373,10 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
         dataMap.put("frstRegistPnttm", bbsArticleInfo.getFrstRegistPnttm());
         
         // 임베딩이 필요한 경우
-        if (withEmbedding) {
+        if (withVector) {
             String combinedText = StrUtil.cleanString(bbsArticleInfo.getNttSj() + " " + bbsArticleInfo.getNttCn());
             Embedding bbsArticleResponse = embeddingModel.embed(combinedText).content();
-            dataMap.put("bbsArticleEmbedding", bbsArticleResponse.vector());
+            dataMap.put("bbsArticleVector", bbsArticleResponse.vector());
         }
         
         return dataMap;
@@ -384,5 +417,47 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
         client.indices().delete(deleteRequest);
         log.debug(String.format("Index %s.", deleteRequest.index().toString().toLowerCase()));
 		
+	}
+
+	@Override
+	public void reprocessFailedSync(String syncSttusCode) {
+		List<Comtnbbssynclog> syncLogs = comtnbbssynclogRepository.findBySyncSttusCode(syncSttusCode);
+		
+		 if (syncLogs.isEmpty()) {
+		        log.info("No items found with status '{}' to process", syncSttusCode);
+		        return;
+		    }
+		    
+		log.info("Found {} items with status '{}' to process", syncLogs.size(), syncSttusCode);
+		
+		for (Comtnbbssynclog syncLog : syncLogs) {
+			try {
+				Optional<BoardVO> boardVOOptional = comtnbbsRepository.findBBSDTOByNttId(syncLog.getNttId())
+	                    .map(dto -> {
+	                        BoardVO vo = new BoardVO();
+	                        BeanUtils.copyProperties(dto, vo);
+	                        return vo;
+	                    });
+				
+				if (boardVOOptional.isPresent()) {
+                    egovOpenSearchService.processOpenSearchOperations(syncLog.getNttId(), boardVOOptional.get());
+                    
+                    syncLog.setSyncSttusCode("C");
+                    syncLog.setSyncPnttm(new Date());
+                    comtnbbssynclogRepository.save(syncLog);
+                } else {
+                    syncLog.setSyncSttusCode("F");
+                    syncLog.setErrorPnttm(new Date());
+                    comtnbbssynclogRepository.save(syncLog);
+                    log.error("Board not found with id: " + syncLog.getNttId());
+                }
+			} catch (Exception e) {
+				log.error("Failed to reprocess sync for board: " + syncLog.getNttId(), e);
+                syncLog.setSyncSttusCode("F");
+                syncLog.setErrorPnttm(new Date());
+                comtnbbssynclogRepository.save(syncLog);
+			}
+			
+		}
 	}
 }

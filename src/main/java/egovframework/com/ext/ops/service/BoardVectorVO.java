@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BoardEmbeddingVO extends Board implements Serializable {
+public class BoardVectorVO extends Board implements Serializable {
 	/** 검색시작일 */
     private String searchBgnDe = "";
 
@@ -107,7 +107,7 @@ public class BoardEmbeddingVO extends Board implements Serializable {
     private String secretAt;
 	
     /** 임베딩 값 */
-    private float[] bbsArticleEmbedding;
+    private float[] bbsArticleVector;
     
     /** 유사도 점수 */
 	private double score;

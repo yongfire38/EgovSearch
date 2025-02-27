@@ -1,16 +1,12 @@
 package egovframework.com.ext.ops.service;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.egovframe.rte.fdl.idgnr.EgovIdGnrService;
-import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import egovframework.com.ext.ops.entity.Comtnbbssynclog;
 import egovframework.com.ext.ops.event.BoardEvent;
@@ -25,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 public class BoardEventListener {
 	private final ComtnbbssynclogRepository comtnbbssynclogRepository;
     private final ComtnbbsRepository comtnbbsRepository;
-    private final EgovIdGnrService idgenServiceManager;
     private final EgovOpenSearchService egovOpenSearchService;
     
     @Bean
@@ -33,62 +28,48 @@ public class BoardEventListener {
         return this::handleBoardEvent;
     }
     
-    @Transactional
     public void handleBoardEvent(BoardEvent event) {
-    	log.info("Received board event: {}", event);
-    	
-    	Comtnbbssynclog bbsManage = new Comtnbbssynclog();
-        String syncId;
-        
-        try {
-        	
-            syncId = idgenServiceManager.getNextStringId();
-            
-            bbsManage.setSyncId(syncId);
-            bbsManage.setNttId(event.getNttId());
-            bbsManage.setBbsId(event.getBbsId());
-            bbsManage.setSyncSttusCode("N"); // 신규
-            bbsManage.setRegistPnttm(event.getEventDateTime());
-            
-            // COMTNBBSSYNCLOG에 저장
-            comtnbbssynclogRepository.save(bbsManage);
-            
-            // BoardVO 조회
-            BoardVO boardVO = comtnbbsRepository.findBBSDTOByNttId(event.getNttId())
-                .map(dto -> {
-                    BoardVO vo = new BoardVO();
-                    BeanUtils.copyProperties(dto, vo);
-                    return vo;
-                })
-                .orElseThrow(() -> new RuntimeException("Board not found with id: " + event.getNttId()));
-            
-            // OpenSearch 처리
-            egovOpenSearchService.processOpenSearchOperations(event.getNttId(), boardVO);
-            
-            // 상태 업데이트
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
-            Date localDate = Date.from(now.toInstant());
-            
-            bbsManage.setSyncSttusCode("Y");
-            bbsManage.setSyncPnttm(localDate);
-            comtnbbssynclogRepository.save(bbsManage);
-            
-            log.info("Successfully processed board event: {}", event);
-            
-        } catch (Exception e) {
-        	log.error("Error processing board event: {}", event, e);
-            
-            // 에러 발생 시 상태를 'E'로 설정
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
-            Date localDate = Date.from(now.toInstant());
-            
-            if (bbsManage.getSyncId() != null) {
-            	bbsManage.setSyncSttusCode("E");
-                bbsManage.setErrorPnttm(localDate);
-                comtnbbssynclogRepository.save(bbsManage);
+    	try {
+    		// Event의 nttId로 COMTNBBSSYNCLOG의 데이터가 Pending 상태인지 확인
+    		Optional<Comtnbbssynclog> syncLogOpt = comtnbbssynclogRepository.findByNttId(event.getNttId());
+            if (syncLogOpt.isEmpty() || !"P".equals(syncLogOpt.get().getSyncSttusCode())) {
+                return;
             }
-            
-            throw new AmqpRejectAndDontRequeueException("Failed to process board event", e);
-        }
+    		
+            Comtnbbssynclog syncLog = syncLogOpt.get();
+    		
+    		// 게시글 데이터 조회
+            Optional<BoardVO> boardVOOptional = comtnbbsRepository.findBBSDTOByNttId(event.getNttId())
+                    .map(dto -> {
+                        BoardVO vo = new BoardVO();
+                        BeanUtils.copyProperties(dto, vo);
+                        return vo;
+                    });
+    		
+    		if (boardVOOptional.isPresent()) {
+    			// OpenSearch 처리
+                egovOpenSearchService.processOpenSearchOperations(event.getNttId(), boardVOOptional.get());
+                
+                // 성공 시 상태 업데이트
+                syncLog.setSyncSttusCode("C");  // Completed
+                syncLog.setSyncPnttm(new Date());
+                comtnbbssynclogRepository.save(syncLog);
+            } else {
+            	 // 게시글을 찾을 수 없는 경우
+                syncLog.setSyncSttusCode("F");  // Failed
+                syncLog.setErrorPnttm(new Date());
+                comtnbbssynclogRepository.save(syncLog);
+                log.error("Board not found with id: " + event.getNttId());
+            }	
+    		
+    	} catch (Exception e) {
+    		log.error("Failed to process board event: " + event.getNttId(), e);
+    		comtnbbssynclogRepository.findByNttId(event.getNttId())
+                .ifPresent(syncLog -> {
+                    syncLog.setSyncSttusCode("F");  // Failed
+                    syncLog.setErrorPnttm(new Date());
+                    comtnbbssynclogRepository.save(syncLog);
+                });
+    	}
     }
 }

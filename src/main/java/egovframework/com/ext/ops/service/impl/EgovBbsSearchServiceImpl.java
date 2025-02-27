@@ -1,5 +1,6 @@
 package egovframework.com.ext.ops.service.impl;
 
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +15,7 @@ import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.SortOrder;
 import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,11 +25,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import com.google.gson.Gson;
+
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.PoolingMode;
-import egovframework.com.ext.ops.service.BoardEmbeddingVO;
+import egovframework.com.ext.ops.config.SearchConfig;
+import egovframework.com.ext.ops.service.BoardVectorVO;
 import egovframework.com.ext.ops.service.BoardVO;
 import egovframework.com.ext.ops.service.EgovBbsSearchService;
 import lombok.RequiredArgsConstructor;
@@ -36,13 +41,13 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements EgovBbsSearchService {
+public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements EgovBbsSearchService, InitializingBean {
 
 	@Value("${opensearch.text.indexname}")
     public String textIndexName;
 	
-	@Value("${opensearch.embedding.indexname}")
-    public String embeddingIndexName;
+	@Value("${opensearch.vector.indexname}")
+    public String vectorIndexName;
 	
 	@Value("${egov.textsearch.count}")
     private int textSearchCount;
@@ -50,16 +55,22 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 	@Value("${egov.textsearch.page.size}")
     private int textSearchPageSize;
 	
-	@Value("${egov.embeddingsearch.count}")
-    private int embeddingSearchCount;
+	@Value("${egov.vectorsearch.count}")
+    private int vectorSearchCount;
 	
-	@Value("${egov.embeddingsearch.page.size}")
-    private int embeddingSearchPageSize;
+	@Value("${egov.vectorsearch.page.size}")
+    private int vectorSearchPageSize;
 	
-	public static final String modelPath = Paths.get(System.getProperty("user.dir")).resolve("model").resolve("model.onnx").toString();
-	public static final String tokenizerPath = Paths.get(System.getProperty("user.dir")).resolve("model").resolve("tokenizer.json").toString();
+	@Value("${app.search-config-path}")
+	private String configPath;
 	
-	private final OpenSearchClient client;
+	private String modelPath;
+	
+    private String tokenizerPath;
+    
+    private EmbeddingModel embeddingModel;
+    
+    private final OpenSearchClient client;
 	
 	private static final Map<String, String> SEARCH_FIELD_MAP;
     
@@ -69,7 +80,27 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
         map.put("2", "nttCn");
         map.put("3", "ntcrNm");
         SEARCH_FIELD_MAP = Collections.unmodifiableMap(map);
-    }	
+    }
+	
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        loadConfig();
+        this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+    }
+    
+    private void loadConfig() {
+        try {
+            String jsonStr = new String(Files.readAllBytes(Paths.get(configPath)));
+            SearchConfig config = new Gson().fromJson(jsonStr, SearchConfig.class);
+            
+            this.modelPath = config.getModelPath();
+            this.tokenizerPath = config.getTokenizerPath();
+            
+        } catch (Exception e) {
+            log.error("Failed to load search config: " + e.getMessage());
+            throw new RuntimeException("Failed to load configuration", e);
+        }
+    }
 	
 	private <T> Page<T> executeSearch(String indexName, int searchCount, int pageSize, 
             int pageIndex, SearchRequest.Builder builder, Class<T> responseType) throws Exception {
@@ -102,8 +133,8 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 			
 			if (result instanceof BoardVO) {
 				((BoardVO) result).setScore(hit.score());
-			} else if (result instanceof BoardEmbeddingVO) {
-				((BoardEmbeddingVO) result).setScore(hit.score());
+			} else if (result instanceof BoardVectorVO) {
+				((BoardVectorVO) result).setScore(hit.score());
 			}
 			
 			return result;
@@ -149,21 +180,20 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 	}
 	
 	@Override
-	public Page<BoardEmbeddingVO> embeddingSearch(BoardVO boardVO) throws Exception {
+	public Page<BoardVectorVO> vectorSearch(BoardVO boardVO) throws Exception {
 		SearchRequest.Builder builder = new SearchRequest.Builder();
         
-        EmbeddingModel embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
         Embedding response = embeddingModel.embed(boardVO.getSearchWrd()).content();
         
         builder.query(q -> q.bool(b -> b
-            .must(m -> m.knn(k -> k.field("bbsArticleEmbedding")
+            .must(m -> m.knn(k -> k.field("bbsArticleVector")
                 .vector(response.vector())
-                .k(embeddingSearchCount)))
+                .k(vectorSearchCount)))
             .must(m -> m.match(mt -> mt.field("useAt")
                 .query(FieldValue.of("Y"))))
         ));
         
-        return executeSearch(embeddingIndexName, embeddingSearchCount, embeddingSearchPageSize,
-                boardVO.getPageIndex(), builder, BoardEmbeddingVO.class);
+        return executeSearch(vectorIndexName, vectorSearchCount, vectorSearchPageSize,
+                boardVO.getPageIndex(), builder, BoardVectorVO.class);
 	}
 }
