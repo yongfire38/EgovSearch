@@ -1,6 +1,6 @@
 package egovframework.com.ext.ops.service;
 
-import java.util.Date;
+import java.util.Calendar;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -30,8 +30,8 @@ public class BoardEventListener {
     
     public void handleBoardEvent(BoardEvent event) {
     	try {
-    		// Event의 nttId로 COMTNBBSSYNCLOG의 데이터가 Pending 상태인지 확인
-    		Optional<Comtnbbssynclog> syncLogOpt = comtnbbssynclogRepository.findByNttId(event.getNttId());
+    		// Event의 nttId로 COMTNBBSSYNCLOG의 가장 최근 데이터가 Pending 상태인지 확인
+            Optional<Comtnbbssynclog> syncLogOpt = comtnbbssynclogRepository.findTopByNttIdOrderByRegistPnttmDesc(event.getNttId());
             if (syncLogOpt.isEmpty() || !"P".equals(syncLogOpt.get().getSyncSttusCode())) {
                 return;
             }
@@ -52,22 +52,36 @@ public class BoardEventListener {
                 
                 // 성공 시 상태 업데이트
                 syncLog.setSyncSttusCode("C");  // Completed
-                syncLog.setSyncPnttm(new Date());
+                
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.MILLISECOND, 0);
+                syncLog.setSyncPnttm(calendar.getTime());
+                
                 comtnbbssynclogRepository.save(syncLog);
             } else {
             	 // 게시글을 찾을 수 없는 경우
                 syncLog.setSyncSttusCode("F");  // Failed
-                syncLog.setErrorPnttm(new Date());
+                
+                // 밀리초를 제거한 현재 시간 설정
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.MILLISECOND, 0);
+                syncLog.setErrorPnttm(calendar.getTime());
+                
                 comtnbbssynclogRepository.save(syncLog);
                 log.error("Board not found with id: " + event.getNttId());
             }	
     		
     	} catch (Exception e) {
     		log.error("Failed to process board event: " + event.getNttId(), e);
-    		comtnbbssynclogRepository.findByNttId(event.getNttId())
+    		comtnbbssynclogRepository.findTopByNttIdOrderByRegistPnttmDesc(event.getNttId())
                 .ifPresent(syncLog -> {
                     syncLog.setSyncSttusCode("F");  // Failed
-                    syncLog.setErrorPnttm(new Date());
+                    
+                    // 밀리초를 제거한 현재 시간 설정
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(Calendar.MILLISECOND, 0);
+                    syncLog.setErrorPnttm(calendar.getTime());
+                    
                     comtnbbssynclogRepository.save(syncLog);
                 });
     	}

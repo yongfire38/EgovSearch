@@ -63,10 +63,6 @@ opensearch:
     indexname: text-bbs-index
   vector:
     indexname: vector-bbs-index
-  model:
-    path: C:\workspace_git_opensearch\EgovSearch\model
-  example:
-    path: C:\workspace_git_opensearch\EgovSearch\example
 
 index:
   batch:
