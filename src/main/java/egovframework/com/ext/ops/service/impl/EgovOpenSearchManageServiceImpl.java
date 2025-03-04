@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -421,43 +423,84 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl
 
 	@Override
 	public void reprocessFailedSync(String syncSttusCode) {
-		List<Comtnbbssynclog> syncLogs = comtnbbssynclogRepository.findBySyncSttusCode(syncSttusCode);
-		
-		 if (syncLogs.isEmpty()) {
-		        log.info("No items found with status '{}' to process", syncSttusCode);
-		        return;
-		    }
-		    
-		log.info("Found {} items with status '{}' to process", syncLogs.size(), syncSttusCode);
-		
-		for (Comtnbbssynclog syncLog : syncLogs) {
-			try {
-				Optional<BoardVO> boardVOOptional = comtnbbsRepository.findBBSDTOByNttId(syncLog.getNttId())
-	                    .map(dto -> {
-	                        BoardVO vo = new BoardVO();
-	                        BeanUtils.copyProperties(dto, vo);
-	                        return vo;
-	                    });
-				
-				if (boardVOOptional.isPresent()) {
-                    egovOpenSearchService.processOpenSearchOperations(syncLog.getNttId(), boardVOOptional.get());
-                    
-                    syncLog.setSyncSttusCode("C");
-                    syncLog.setSyncPnttm(new Date());
-                    comtnbbssynclogRepository.save(syncLog);
-                } else {
-                    syncLog.setSyncSttusCode("F");
-                    syncLog.setErrorPnttm(new Date());
-                    comtnbbssynclogRepository.save(syncLog);
-                    log.error("Board not found with id: " + syncLog.getNttId());
-                }
-			} catch (Exception e) {
-				log.error("Failed to reprocess sync for board: " + syncLog.getNttId(), e);
-                syncLog.setSyncSttusCode("F");
-                syncLog.setErrorPnttm(new Date());
-                comtnbbssynclogRepository.save(syncLog);
-			}
-			
-		}
+	    List<Comtnbbssynclog> syncLogs = comtnbbssynclogRepository.findBySyncSttusCode(syncSttusCode);
+	    
+	    if (syncLogs.isEmpty()) {
+	        log.info("No items found with status '{}' to process", syncSttusCode);
+	        return;
+	    }
+	    
+	    log.info("Found {} items with status '{}' to process", syncLogs.size(), syncSttusCode);
+	    
+	    // nttId별로 그룹화
+	    Map<Long, List<Comtnbbssynclog>> syncLogsByNttId = syncLogs.stream()
+	            .collect(Collectors.groupingBy(Comtnbbssynclog::getNttId));
+	    
+	    log.info("Processing {} unique nttIds", syncLogsByNttId.size());
+	    
+	    // 각 nttId별로 처리
+	    for (Map.Entry<Long, List<Comtnbbssynclog>> entry : syncLogsByNttId.entrySet()) {
+	        Long nttId = entry.getKey();
+	        List<Comtnbbssynclog> logsForNttId = entry.getValue();
+	        
+	        try {
+	            // 게시글 데이터 조회
+	            Optional<BoardVO> boardVOOptional = comtnbbsRepository.findBBSDTOByNttId(nttId)
+	                .map(dto -> {
+	                    BoardVO vo = new BoardVO();
+	                    BeanUtils.copyProperties(dto, vo);
+	                    return vo;
+	                });
+	                
+	            if (boardVOOptional.isPresent()) {
+	                // OpenSearch 처리 (한 번만 처리)
+	                egovOpenSearchService.processOpenSearchOperations(nttId, boardVOOptional.get());
+	                
+	                // 밀리초를 제거한 현재 시간 설정 (for문 밖에서 한 번만 생성)
+	                Calendar calendar = Calendar.getInstance();
+	                calendar.set(Calendar.MILLISECOND, 0);
+	                Date dateWithoutMillis = calendar.getTime();
+	                
+	                // 모든 로그 상태 업데이트
+	                for (Comtnbbssynclog log : logsForNttId) {
+	                    log.setSyncSttusCode("C");  // Completed
+	                    log.setSyncPnttm(dateWithoutMillis);
+	                    comtnbbssynclogRepository.save(log);
+	                }
+	                
+	                log.info("Successfully processed nttId: {} and updated {} logs", nttId, logsForNttId.size());
+	            } else {
+	                // 게시글을 찾을 수 없는 경우, 모든 로그를 실패로 표시
+	                // 밀리초를 제거한 현재 시간 설정 (for문 밖에서 한 번만 생성)
+	                Calendar calendar = Calendar.getInstance();
+	                calendar.set(Calendar.MILLISECOND, 0);
+	                Date dateWithoutMillis = calendar.getTime();
+	                
+	                for (Comtnbbssynclog log : logsForNttId) {
+	                    log.setSyncSttusCode("F");  // Failed
+	                    log.setErrorPnttm(dateWithoutMillis);
+	                    comtnbbssynclogRepository.save(log);
+	                }
+	                
+	                log.error("Board not found with id: {}, marked {} logs as failed", nttId, logsForNttId.size());
+	            }
+	        } catch (Exception e) {
+	            // 오류 발생 시 모든 로그를 실패로 표시
+	            log.error("Failed to process nttId: {}", nttId, e);
+	            
+	            // 밀리초를 제거한 현재 시간 설정 (for문 밖에서 한 번만 생성)
+	            Calendar calendar = Calendar.getInstance();
+	            calendar.set(Calendar.MILLISECOND, 0);
+	            Date dateWithoutMillis = calendar.getTime();
+	            
+	            for (Comtnbbssynclog log : logsForNttId) {
+	                log.setSyncSttusCode("F");  // Failed
+	                log.setErrorPnttm(dateWithoutMillis);
+	                comtnbbssynclogRepository.save(log);
+	            }
+	        }
+	    }
+	    
+	    log.info("Completed processing {} unique nttIds with status '{}'", syncLogsByNttId.size(), syncSttusCode);
 	}
 }
