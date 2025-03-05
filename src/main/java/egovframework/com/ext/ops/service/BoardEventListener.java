@@ -1,26 +1,27 @@
 package egovframework.com.ext.ops.service;
 
-import java.util.Calendar;
-import java.util.Optional;
-import java.util.function.Consumer;
-
+import egovframework.com.ext.ops.entity.BbsSyncLog;
+import egovframework.com.ext.ops.event.BoardEvent;
+import egovframework.com.ext.ops.repository.EgovBbsRepository;
+import egovframework.com.ext.ops.repository.EgovBbsSyncLogRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import egovframework.com.ext.ops.entity.Comtnbbssynclog;
-import egovframework.com.ext.ops.event.BoardEvent;
-import egovframework.com.ext.ops.repository.ComtnbbsRepository;
-import egovframework.com.ext.ops.repository.ComtnbbssynclogRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BoardEventListener {
-	private final ComtnbbssynclogRepository comtnbbssynclogRepository;
-    private final ComtnbbsRepository comtnbbsRepository;
+	private final EgovBbsSyncLogRepository comtnbbssynclogRepository;
+    private final EgovBbsRepository comtnbbsRepository;
     private final EgovOpenSearchService egovOpenSearchService;
     
     @Bean
@@ -31,12 +32,10 @@ public class BoardEventListener {
     public void handleBoardEvent(BoardEvent event) {
     	try {
     		// Event의 nttId로 COMTNBBSSYNCLOG의 가장 최근 데이터가 Pending 상태인지 확인
-            Optional<Comtnbbssynclog> syncLogOpt = comtnbbssynclogRepository.findTopByNttIdOrderByRegistPnttmDesc(event.getNttId());
+    		Optional<BbsSyncLog> syncLogOpt = comtnbbssynclogRepository.findTopByNttIdOrderByRegistPnttmDesc(event.getNttId());
             if (syncLogOpt.isEmpty() || !"P".equals(syncLogOpt.get().getSyncSttusCode())) {
                 return;
             }
-    		
-            Comtnbbssynclog syncLog = syncLogOpt.get();
     		
     		// 게시글 데이터 조회
             Optional<BoardVO> boardVOOptional = comtnbbsRepository.findBBSDTOByNttId(event.getNttId())
@@ -48,42 +47,53 @@ public class BoardEventListener {
     		
     		if (boardVOOptional.isPresent()) {
     			// OpenSearch 처리
-                egovOpenSearchService.processOpenSearchOperations(event.getNttId(), boardVOOptional.get());
+    			egovOpenSearchService.processOpenSearchOperations(event.getNttId(), boardVOOptional.get());
+    			
+    			Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.MILLISECOND, 0);
+                Date dateWithoutMillis = calendar.getTime();
+                
+                List<BbsSyncLog> allPendingLogs = comtnbbssynclogRepository.findByNttIdAndSyncSttusCode(event.getNttId(), "P");
                 
                 // 성공 시 상태 업데이트
-                syncLog.setSyncSttusCode("C");  // Completed
+                for (BbsSyncLog log : allPendingLogs) {
+                    log.setSyncSttusCode("C");  // Completed
+                    log.setSyncPnttm(dateWithoutMillis);
+                    comtnbbssynclogRepository.save(log);
+                }
                 
-                Calendar calendar = Calendar.getInstance();
-                calendar.set(Calendar.MILLISECOND, 0);
-                syncLog.setSyncPnttm(calendar.getTime());
-                
-                comtnbbssynclogRepository.save(syncLog);
+                log.info("Successfully processed nttId: {} and updated {} logs", event.getNttId(), allPendingLogs.size());
             } else {
             	 // 게시글을 찾을 수 없는 경우
-                syncLog.setSyncSttusCode("F");  // Failed
-                
-                // 밀리초를 제거한 현재 시간 설정
-                Calendar calendar = Calendar.getInstance();
+            	Calendar calendar = Calendar.getInstance();
                 calendar.set(Calendar.MILLISECOND, 0);
-                syncLog.setErrorPnttm(calendar.getTime());
+                Date dateWithoutMillis = calendar.getTime();
                 
-                comtnbbssynclogRepository.save(syncLog);
-                log.error("Board not found with id: " + event.getNttId());
+                List<BbsSyncLog> allPendingLogs = comtnbbssynclogRepository.findByNttIdAndSyncSttusCode(event.getNttId(), "P");
+
+                for (BbsSyncLog log : allPendingLogs) {
+                    log.setSyncSttusCode("F");  // Failed
+                    log.setErrorPnttm(dateWithoutMillis);
+                    comtnbbssynclogRepository.save(log);
+                }
+                
+                log.error("Board not found with id: {}, marked {} logs as failed", event.getNttId(), allPendingLogs.size());
             }	
     		
     	} catch (Exception e) {
     		log.error("Failed to process board event: " + event.getNttId(), e);
-    		comtnbbssynclogRepository.findTopByNttIdOrderByRegistPnttmDesc(event.getNttId())
-                .ifPresent(syncLog -> {
-                    syncLog.setSyncSttusCode("F");  // Failed
-                    
-                    // 밀리초를 제거한 현재 시간 설정
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.set(Calendar.MILLISECOND, 0);
-                    syncLog.setErrorPnttm(calendar.getTime());
-                    
-                    comtnbbssynclogRepository.save(syncLog);
-                });
+    		
+    		Calendar calendar = Calendar.getInstance();
+            calendar.set(Calendar.MILLISECOND, 0);
+            Date dateWithoutMillis = calendar.getTime();
+    		
+            List<BbsSyncLog> allPendingLogs = comtnbbssynclogRepository.findByNttIdAndSyncSttusCode(event.getNttId(), "P");
+    		
+            for (BbsSyncLog log : allPendingLogs) {
+                log.setSyncSttusCode("F");  // Failed
+                log.setErrorPnttm(dateWithoutMillis);
+                comtnbbssynclogRepository.save(log);
+            }
     	}
     }
 }

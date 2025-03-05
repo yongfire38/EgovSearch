@@ -1,19 +1,59 @@
 package egovframework.com.ext.ops.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.io.Serializable;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
+@Getter
+@Setter
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class BoardVectorVO extends Board implements Serializable {
-	/** 검색시작일 */
+@NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown=true)
+public class BoardVectorVO extends EgovDefaultVO implements Serializable {
+
+    private static final long serialVersionUID = 2369702238824949925L;
+
+    /** 게시물 아이디 */
+    private Long nttId;
+
+    /** 게시판 아이디 */
+    private String bbsId;
+
+    /** 게시물 번호 */
+    private String nttNo;
+
+    /** 게시물 제목 */
+    private String nttSj;
+
+    /** 게시물 내용 */
+    private String nttCn;
+
+    /** 사용여부 */
+    private String useAt;
+
+    /** 게시시작일 */
+    private String ntceBgnde;
+
+    /** 게시종료일 */
+    private String ntceEndde;
+
+    /** 게시자 아이디 */
+    private String ntcrId;
+
+    /** 게시자명 */
+    private String ntcrNm;
+
+    /** 패스워드 */
+    private String password;
+
+    /** 게시물 첨부파일 아이디 */
+    private String atchFileId;
+
+    /** 검색시작일 */
     private String searchBgnDe = "";
 
     /** 검색조건 */
@@ -28,35 +68,26 @@ public class BoardVectorVO extends Board implements Serializable {
     /** 정렬순서(DESC,ASC) */
     private long sortOrdr = 0L;
 
-    /** 검색사용여부 */
-    private String searchUseYn = "";
-
-    /** 현재페이지 */
-    private int pageIndex = 1;
-
-    /** 페이지개수 */
-    private int pageUnit = 10;
-
-    /** 페이지사이즈 */
-    private int pageSize = 10;
-
-    /** 첫페이지 인덱스 */
-    private int firstIndex = 1;
-
-    /** 마지막페이지 인덱스 */
-    private int lastIndex = 1;
-
-    /** 페이지당 레코드 개수 */
-    private int recordCountPerPage = 10;
-
     /** 레코드 번호 */
     private int rowNo = 0;
+
+    /** 최초등록자 아이디 */
+    private String frstRegisterId;
 
     /** 최초 등록자명 */
     private String frstRegisterNm = "";
 
+    /** 최초 수정시점 */
+    private String frstRegistPnttm;
+
+    /** 최종수정자 아이디 */
+    private String lastUpdusrId;
+
     /** 최종 수정자명 */
     private String lastUpdusrNm = "";
+
+    /** 최종 수정시점 */
+    private String lastUpdtPnttm;
 
     /** 유효여부 */
     private String isExpired = "N";
@@ -105,10 +136,11 @@ public class BoardVectorVO extends Board implements Serializable {
 
     /** 비밀글 여부 */
     private String secretAt;
-	
+
+    /** 유사도 점수 */
+    private double score;
+
     /** 임베딩 값 */
     private float[] bbsArticleVector;
-    
-    /** 유사도 점수 */
-	private double score;
+
 }

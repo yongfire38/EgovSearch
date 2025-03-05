@@ -1,15 +1,15 @@
 package egovframework.com.ext.ops.service;
 
-import java.io.Serializable;
-
 import lombok.Data;
+
+import java.io.Serializable;
 
 @Data
 public class EgovDefaultVO implements Serializable {
-	
-	private static final long serialVersionUID = 7643359694929159826L;
 
-	/** 검색Keyword */
+    private static final long serialVersionUID = 5960791003427573712L;
+
+    /** 검색Keyword */
     private String searchCondition = "";
 
     /** 검색Keyword */

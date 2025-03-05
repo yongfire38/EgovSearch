@@ -1,8 +1,8 @@
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-    }
-}, true);
+// document.addEventListener('keydown', function(event) {
+//     if (event.key === 'Enter') {
+//         event.preventDefault();
+//     }
+// }, true);
 
 let contextPath = $('#contextPathHolder').attr('data-contextPath') ? $('#contextPathHolder').attr('data-contextPath') : '';
 
