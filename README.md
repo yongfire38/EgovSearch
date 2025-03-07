@@ -250,6 +250,98 @@ optimum-cli export onnx -m jhgan/ko-sroberta-multitask .
 - `egov.vectorsearch.count` : 벡터 검색 시, 제공할 결과의 전체 데이터 수
 - `egov.vectorsearch.page.size` : 벡터 검색 시, 한 페이지에 보여 줄 데이터 수
 
+## Open Search DashBoard
+
+- 해당 항목에서는 생성된 Index 및 Document를 Open Search DashBoard 내에서 확인하는 방법을 간략히 소개한다.
+- `http://localhost:5601/app/login?`에서 로그인하여 Open Search DashBoard에 접속하였다면 좌측 메뉴의 `Management - Index Management` 에서 만들어진 Index의 항목 및 정보를 확인 가능하다.
+-  `Management - Dev Tools`에서는 JSON에 기반한 Query DSL로 Index 내 데이터의 검색 및 수정이 가능하다.
+
+![capture11](https://github.com/user-attachments/assets/f146c5ff-ff93-4797-b9be-468749381305)
+
+- `Match Query`를 사용하여 인덱스 내 데이터를 단순 조회하는 예시는 다음과 같다.
+- 제시한 예시 외에도 Open Search 에서는 굉장히 많은 검색 방식을 지원한다. 더 자세한 예시는 공식 문서의 [Query DSL](https://opensearch.org/docs/latest/query-dsl/) 페이지를 참고한다.
+
+```
+# text-bbs-index 라는 이름을 가진 Index 에서 nttId 내림차순으로 100 건의 Document 조회
+
+GET /text-bbs-index/_search
+{
+  "size": 100,
+  "from": 0, 
+  "sort": [
+    {
+      "nttId.keyword": {
+        "order": "desc"
+      }
+    }
+  ], 
+  "query": {
+    "match_all": {}
+  }
+}
+
+# text-bbs-index 라는 이름을 가진 Index 에서 nttCn 이라는 필드 값이 '테스트'인 100 건의 Document 조회
+# 결과에서 유사도 점수를 표시한다.
+
+GET /text-bbs-index/_search
+{
+  "size": 100,
+  "from": 0, 
+  "track_scores": true,
+  "sort": [
+    {
+      "score": {
+        "order": "desc"
+      }
+    }
+  ],
+  "query": {
+    "match": {
+      "nttCn": "테스트"
+    }
+  }
+}
+
+# text-bbs-index 라는 이름을 가진 Index 에서 nttSj 라는 필드 값이 '테스트'이고 useAt 필드 값은 'Y'인 5 건의 Document 조회
+# 1글자의 오타는 무시하는 설정을 가진다.
+# 결과에서 유사도 점수를 표시한다.
+
+GET /text-bbs-index/_search
+{
+  "size": 5,
+  "from": 0,
+  "track_scores": true,
+  "sort": [
+    "_score",
+    {
+      "nttId": {
+        "order": "desc"
+      }
+    }
+  ],
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "nttSj": {
+              "query": "테스트",
+              "fuzziness": "AUTO"
+            }
+          }
+        },
+        {
+          "match": {
+            "useAt": "Y"
+          }
+        }
+      ]
+    }
+  }
+}
+
+```
+
 ## 구동 및 확인
 
 - 초기 설정 기준으로 브라우저에서 `http://localhost:9993/` 로 검색 메인 화면을 확인 가능하다. 해당 화면에서  Open Search Index에 대한 match 검색 및 Vector 검색을 수행할 수 있다.
