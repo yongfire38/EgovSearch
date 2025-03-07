@@ -1,25 +1,31 @@
 package egovframework.com.ext.ops.service.impl;
 
-import com.google.gson.Gson;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.PoolingMode;
-import egovframework.com.config.EgovSearchConfig;
-import egovframework.com.ext.ops.entity.BbsSyncLog;
-import egovframework.com.ext.ops.repository.EgovBbsRepository;
-import egovframework.com.ext.ops.repository.EgovBbsSyncLogRepository;
-import egovframework.com.ext.ops.service.BbsDTO;
-import egovframework.com.ext.ops.service.BoardVO;
-import egovframework.com.ext.ops.service.EgovOpenSearchManageService;
-import egovframework.com.ext.ops.service.EgovOpenSearchService;
-import egovframework.com.ext.ops.util.StrUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.OpenSearchException;
-import org.opensearch.client.opensearch._types.analysis.*;
+import org.opensearch.client.opensearch._types.analysis.Analyzer;
+import org.opensearch.client.opensearch._types.analysis.AsciiFoldingTokenFilter;
+import org.opensearch.client.opensearch._types.analysis.CharFilter;
+import org.opensearch.client.opensearch._types.analysis.CustomAnalyzer;
+import org.opensearch.client.opensearch._types.analysis.LowercaseTokenFilter;
+import org.opensearch.client.opensearch._types.analysis.NoriDecompoundMode;
+import org.opensearch.client.opensearch._types.analysis.NoriPartOfSpeechTokenFilter;
+import org.opensearch.client.opensearch._types.analysis.NoriTokenizer;
+import org.opensearch.client.opensearch._types.analysis.PatternReplaceCharFilter;
+import org.opensearch.client.opensearch._types.analysis.SynonymGraphTokenFilter;
+import org.opensearch.client.opensearch._types.analysis.TokenFilter;
+import org.opensearch.client.opensearch._types.analysis.Tokenizer;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.core.BulkRequest;
 import org.opensearch.client.opensearch.core.BulkResponse;
@@ -35,11 +41,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.PoolingMode;
+import egovframework.com.config.ConfigUtils;
+import egovframework.com.config.EgovSearchConfig;
+import egovframework.com.ext.ops.entity.BbsSyncLog;
+import egovframework.com.ext.ops.repository.EgovBbsRepository;
+import egovframework.com.ext.ops.repository.EgovBbsSyncLogRepository;
+import egovframework.com.ext.ops.service.BbsDTO;
+import egovframework.com.ext.ops.service.BoardVO;
+import egovframework.com.ext.ops.service.EgovOpenSearchManageService;
+import egovframework.com.ext.ops.service.EgovOpenSearchService;
+import egovframework.com.ext.ops.util.StrUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service("opsEgovOpenSearchManageService")
 @RequiredArgsConstructor
@@ -55,37 +72,26 @@ public class EgovOpenSearchManageServiceImpl extends EgovAbstractServiceImpl imp
     @Value("${index.batch.size}")
     private int batchSize;
 
-    @Value("${app.search-config-path}")
-    private String configPath;
-
     private String modelPath;
     private String tokenizerPath;
     private String stopTagsPath;
     private String synonymsPath;
     private String dictionaryRulesPath;
     private EmbeddingModel embeddingModel;
+    
+    private final ConfigUtils configUtils;
 
-    private void loadConfig() {
-        try {
-            String jsonStr = new String(Files.readAllBytes(Paths.get(configPath)));
-            EgovSearchConfig config = new Gson().fromJson(jsonStr, EgovSearchConfig.class);
-
+    @Override
+    public void afterPropertiesSet() {
+    	EgovSearchConfig config = configUtils.loadConfig();
+    	if (config != null) {
             this.modelPath = config.getModelPath();
             this.tokenizerPath = config.getTokenizerPath();
             this.stopTagsPath = config.getStopTagsPath();
             this.synonymsPath = config.getSynonymsPath();
             this.dictionaryRulesPath = config.getDictionaryRulesPath();
-
-        } catch (IOException e) {
-            log.error("Failed to load search config: " + e.getMessage());
-            throw new RuntimeException("Failed to load configuration", e);
+            this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
         }
-    }
-
-    @Override
-    public void afterPropertiesSet() {
-        loadConfig();
-        this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
     }
 
     private final OpenSearchClient client;

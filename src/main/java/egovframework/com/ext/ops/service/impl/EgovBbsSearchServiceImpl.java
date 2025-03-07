@@ -1,16 +1,13 @@
 package egovframework.com.ext.ops.service.impl;
 
-import com.google.gson.Gson;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.PoolingMode;
-import egovframework.com.config.EgovSearchConfig;
-import egovframework.com.ext.ops.service.BoardVO;
-import egovframework.com.ext.ops.service.BoardVectorVO;
-import egovframework.com.ext.ops.service.EgovBbsSearchService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch._types.FieldValue;
@@ -20,15 +17,25 @@ import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.PoolingMode;
+import egovframework.com.config.ConfigUtils;
+import egovframework.com.config.EgovSearchConfig;
+import egovframework.com.ext.ops.service.BoardVO;
+import egovframework.com.ext.ops.service.BoardVectorVO;
+import egovframework.com.ext.ops.service.EgovBbsSearchService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service("opsEgovBbsSearchService")
 @RequiredArgsConstructor
@@ -53,14 +60,13 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
     @Value("${egov.vectorsearch.page.size}")
     private int vectorSearchPageSize;
 
-    @Value("${app.search-config-path}")
-    private String configPath;
-
     private String modelPath;
     private String tokenizerPath;
     private EmbeddingModel embeddingModel;
     private final OpenSearchClient client;
     private static final Map<String, String> SEARCH_FIELD_MAP;
+    
+    private final ConfigUtils configUtils;
 
     static {
         Map<String, String> map = new HashMap<>();
@@ -72,21 +78,12 @@ public class EgovBbsSearchServiceImpl extends EgovAbstractServiceImpl implements
 
     @Override
     public void afterPropertiesSet() {
-        loadConfig();
-        this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
-    }
-
-    private void loadConfig() {
-        try {
-            String jsonStr = new String(Files.readAllBytes(Paths.get(configPath)));
-            EgovSearchConfig config = new Gson().fromJson(jsonStr, EgovSearchConfig.class);
-
+    	EgovSearchConfig config = configUtils.loadConfig();
+    	if (config != null) {
             this.modelPath = config.getModelPath();
             this.tokenizerPath = config.getTokenizerPath();
-
-        } catch (IOException e) {
-            log.error("Failed to load search config: " + e.getMessage());
-        }
+            this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+        } 
     }
 
     private <T> Page<T> executeSearch(String indexName, int searchCount, int pageSize,

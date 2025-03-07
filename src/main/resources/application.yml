@@ -1,5 +1,5 @@
 server:
-    port: 9993 # random port
+    port: 9992 # random port
     tomcat:
       connection:
         timeout: -1
@@ -112,4 +112,4 @@ egov:
       size: 5
 
 app:
-  search-config-path: ./searchConfig.json
+  search-config-path: C:\Users\platformtech\EgovSearch-Config\config\searchConfig.json

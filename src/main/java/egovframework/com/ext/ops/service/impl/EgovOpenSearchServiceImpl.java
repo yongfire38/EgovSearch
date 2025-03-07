@@ -1,17 +1,7 @@
 package egovframework.com.ext.ops.service.impl;
 
-import com.google.gson.Gson;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
-import dev.langchain4j.model.embedding.onnx.PoolingMode;
-import egovframework.com.config.EgovSearchConfig;
-import egovframework.com.ext.ops.service.BoardVO;
-import egovframework.com.ext.ops.service.BoardVectorVO;
-import egovframework.com.ext.ops.service.EgovOpenSearchService;
-import egovframework.com.ext.ops.util.StrUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch.core.GetRequest;
@@ -23,9 +13,18 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.OnnxEmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.PoolingMode;
+import egovframework.com.config.ConfigUtils;
+import egovframework.com.config.EgovSearchConfig;
+import egovframework.com.ext.ops.service.BoardVO;
+import egovframework.com.ext.ops.service.BoardVectorVO;
+import egovframework.com.ext.ops.service.EgovOpenSearchService;
+import egovframework.com.ext.ops.util.StrUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service("opsEgovOpenSearchService")
 @RequiredArgsConstructor
@@ -43,25 +42,19 @@ public class EgovOpenSearchServiceImpl extends EgovAbstractServiceImpl implement
 
     private String modelPath;
     private String tokenizerPath;
+    private EmbeddingModel embeddingModel;
     private final OpenSearchClient client;
+    
+    private final ConfigUtils configUtils;
 
     @Override
     public void afterPropertiesSet() {
-        loadConfig();
-    }
-
-    private void loadConfig() {
-        try {
-            String jsonStr = new String(Files.readAllBytes(Paths.get(configPath)));
-            EgovSearchConfig config = new Gson().fromJson(jsonStr, EgovSearchConfig.class);
-
+    	EgovSearchConfig config = configUtils.loadConfig();
+    	if (config != null) {
             this.modelPath = config.getModelPath();
             this.tokenizerPath = config.getTokenizerPath();
-
-        } catch (IOException e) {
-            log.error("Failed to load search config: " + e.getMessage());
-            throw new RuntimeException("Failed to load configuration", e);
-        }
+            this.embeddingModel = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
+        } 
     }
 
     @Override
@@ -171,10 +164,9 @@ public class EgovOpenSearchServiceImpl extends EgovAbstractServiceImpl implement
     }
 
     private BoardVectorVO addVector(BoardVO boardVO) {
-        EmbeddingModel model = new OnnxEmbeddingModel(modelPath, tokenizerPath, PoolingMode.MEAN);
         String combinedText = boardVO.getNttSj() + " " + boardVO.getNttCn();
 
-        Embedding articleResponse = model.embed(StrUtil.cleanString(combinedText)).content();
+        Embedding articleResponse = embeddingModel.embed(StrUtil.cleanString(combinedText)).content();
         float[] bbsArticleVector = articleResponse.vector();
 
         BoardVectorVO boardVectorVO = new BoardVectorVO();
