@@ -14,7 +14,7 @@
 
 | 프로그램 명 | 버전 명   |
 | :----- | :----- |
-| Java   | 1.8 이상 |
+| Java   | 11 이상 |
 | Docker Desktop | 4.39.0 |
 | Open Search | 2.15.0 |
 | Python | 3.11.5 |
