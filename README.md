@@ -15,9 +15,11 @@
 | 프로그램 명 | 버전 명   |
 | :----- | :----- |
 | Java   | 11 이상 |
+| Spring Boot | 2.7.18 |
+| Spring Cloud | 2021.0.9 |
 | Docker Desktop | 4.39.0 |
 | Open Search | 2.15.0 |
-| Python | 3.11.5 |
+| Python | 3.11.5 (Embedding 용 Model export 시 사용) |
 
 ## Open Search 설정
 
@@ -26,11 +28,11 @@
 - 기본적으로 opensearch-node1, opensearch-node2, opensearch-dashboard 의 3개 서비스로 구성되어 있다.
 - Java heap size는 `OPENSEARCH_JAVA_OPTS` 에서 설정 가능하며 ram의 50%까지는 설정하는 것을 추천한다.
 - Open Search DashBoard의 관리자 Password는 기본적으로 `yourStrongPassword123!`으로 설정되어 있으며 단순 문자열은 실행 시 오류가 발생하므로 대소문자 및 특문을 반드시 넣어 설정하여 주도록 한다.
-- 설정된 Password는 프로젝트 `docker-compose\Opensearch` 내 `application.yml`의 `opensearch.password` 속성과 일치되어야 한다.
+- `docker-compose.yml` 에서 설정된 Password는 프로젝트 `/src/main/resources` 내 `application.yml`의 `opensearch.password` 속성과 일치되어야 한다.
 
 ### Docker Compose 실행
 
-패스워드는 `docker-compose up` 실행 전에 임의로 환경 변수를 설정하거나, `.env` 파일을 활용하여 설정할 수 있다. 
+패스워드는 `docker-compose.yml`에서 직접적으로 설정하는 방법 외에도 `docker-compose up` 실행 전에 임의로 환경 변수를 설정하거나, `.env` 파일을 활용하여 설정할 수 있다. 
 
 ```bash
 # 패스워드를 임의로 설정 후 실행
